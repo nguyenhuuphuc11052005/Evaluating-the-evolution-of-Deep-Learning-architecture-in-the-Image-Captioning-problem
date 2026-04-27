@@ -4,7 +4,6 @@
 # Bỏ qua toàn bộ nội dung trong thư mục data nhưng giữ lại vỏ thư mục
 data/*
 !data/.gitkeep
-
 # Bỏ qua checkpoints và logs của TensorBoard/W&B
 experiments/checkpoints/*
 !experiments/checkpoints/.gitkeep
