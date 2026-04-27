@@ -18,7 +18,7 @@ class EarlyStopping:
         if self.best_loss is None:
             self.best_loss = val_loss
             self.save_checkpoint(val_loss, model_state, optimizer_state, epoch)
-        elif val_loss > self.best_loss - self.delta:
+        elif val_loss > self.best_loss - self.min_delta:
             self.counter += 1
             print(f"=> EarlyStopping: Không cải thiện ({self.counter} / {self.patience})")
             if self.counter >= self.patience:
