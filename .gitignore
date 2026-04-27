@@ -1,0 +1,54 @@
+# ==========================================
+# 1. DỮ LIỆU & TRỌNG SỐ MÔ HÌNH (QUAN TRỌNG NHẤT)
+# ==========================================
+# Bỏ qua toàn bộ nội dung trong thư mục data nhưng giữ lại vỏ thư mục
+data/*
+!data/.gitkeep
+
+# Bỏ qua checkpoints và logs của TensorBoard/W&B
+experiments/checkpoints/*
+!experiments/checkpoints/.gitkeep
+experiments/logs/*
+!experiments/logs/.gitkeep
+
+# Bỏ qua các file trọng số PyTorch và các định dạng model khác
+*.pth
+*.pt
+*.ckpt
+*.weights
+*.h5
+
+# ==========================================
+# 2. MÔI TRƯỜNG ẢO & CẤU HÌNH BẢO MẬT
+# ==========================================
+venv/
+env/
+.venv/
+.env
+
+# ==========================================
+# 3. PYTHON CACHE & BIÊN DỊCH
+# ==========================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# ==========================================
+# 4. JUPYTER NOTEBOOK CACHE
+# ==========================================
+.ipynb_checkpoints/
+
+# ==========================================
+# 5. HỆ ĐIỀU HÀNH & IDE 
+# ==========================================
+# File rác tự sinh của macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# File cấu hình của các trình soạn thảo (VS Code, PyCharm)
+.vscode/
+.idea/
+*.swp
+*.swo
