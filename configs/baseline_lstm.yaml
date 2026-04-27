@@ -1,0 +1,19 @@
+# Cấu hình cho Baseline: ResNet50 + LSTM
+experiment_name: "baseline_lstm_run1"
+
+model:
+  type: "lstm"
+  embed_size: 256
+  hidden_size: 512
+  num_layers: 1
+
+training:
+  batch_size: 64
+  learning_rate: 0.0003
+  num_epochs: 15
+  patience: 3            # Cho Early Stopping
+
+data:
+  root_dir: "data/ms_coco/train2014"
+  train_ann_file: "data/ms_coco/annotations/subset_train.json"
+  val_ann_file: "data/ms_coco/annotations/subset_val.json"
