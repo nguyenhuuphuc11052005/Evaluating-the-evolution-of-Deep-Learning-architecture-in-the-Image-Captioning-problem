@@ -1,0 +1,33 @@
+import torch
+import torch.nn as nn
+import torchvision.models as models
+
+class ResNet50Encoder(nn.Module):
+    def __init__(self, embed_size):
+        super(ResNet50Encoder, self).__init__()
+        # Tải mô hình ResNet50 đã được pre-trained
+        resnet = models.resnet50(weights=models.ResNet50_Weights.DEFAULT)
+        
+        # Cắt bỏ lớp Linear cuối cùng (fc) của ResNet
+        modules = list(resnet.children())[:-1]
+        self.resnet = nn.Sequential(*modules)
+        
+        # Thêm lớp Linear mới để ép kiểu vector 2048 chiều về embed_size
+        self.linear = nn.Linear(resnet.fc.in_features, embed_size)
+        
+        # Thêm BatchNorm để ổn định quá trình huấn luyện
+        self.bn = nn.BatchNorm1d(embed_size, momentum=0.01)
+        
+        # ĐÓNG BĂNG (Freeze) trọng số của ResNet50 để tiết kiệm GPU/RAM
+        for param in self.resnet.parameters():
+            param.requires_grad = False
+
+    def forward(self, images):
+        # images shape: (batch_size, 3, 224, 224)
+        features = self.resnet(images)          # (batch_size, 2048, 1, 1)
+        features = features.view(features.size(0), -1) # (batch_size, 2048)
+        
+        features = self.linear(features)        # (batch_size, embed_size)
+        features = self.bn(features)
+        
+        return features
