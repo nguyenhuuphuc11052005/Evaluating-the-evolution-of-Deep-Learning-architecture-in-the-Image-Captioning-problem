@@ -1,4 +1,4 @@
-
+import torch.nn as nn
 from logging import config
 import torch
 import torch.optim as optim
@@ -15,6 +15,11 @@ def train_model(train_loader, val_loader, encoder, decoder, vocab,config):
     
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     encoder, decoder = encoder.to(device), decoder.to(device)
+    if torch.cuda.device_count() > 1:
+        logger.info(f"Kích hoạt chạy song song trên {torch.cuda.device_count()} GPUs!")
+        encoder = nn.DataParallel(encoder)
+        decoder = nn.DataParallel(decoder)
+
     learning_rate = config['training']['learning_rate']
     num_epochs = config['training']['num_epochs']
     # 2. Khởi tạo Loss, Optimizer và Callbacks
@@ -89,10 +94,12 @@ def train_model(train_loader, val_loader, encoder, decoder, vocab,config):
 
         logger.info(f"Epoch [{epoch+1}] - Train Loss: {avg_train_loss:.4f} | Val Loss: {avg_val_loss:.4f}")
 
+        encoder_state = encoder.module.state_dict() if isinstance(encoder, nn.DataParallel) else encoder.state_dict()
+        decoder_state = decoder.module.state_dict() if isinstance(decoder, nn.DataParallel) else decoder.state_dict()
         # ================= XỬ LÝ CHECKPOINT & EARLY STOPPING =================
         model_state = {
-            'encoder': encoder.state_dict(),
-            'decoder': decoder.state_dict()
+            'encoder': encoder_state,
+            'decoder': decoder_state
         }
         
         # Đưa vào EarlyStopping để tự đánh giá và lưu checkpoint 
