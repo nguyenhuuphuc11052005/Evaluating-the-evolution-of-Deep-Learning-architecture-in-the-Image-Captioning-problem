@@ -19,3 +19,11 @@ class CaptionLoss(nn.Module):
         
         loss = self.criterion(outputs, targets)
         return loss
+    
+
+
+def get_criterion(vocab):
+    pad_idx = vocab.stoi["<pad>"]
+    # Trả về hàm CrossEntropyLoss chuẩn của PyTorch
+    criterion = nn.CrossEntropyLoss(ignore_index=pad_idx)
+    return criterion

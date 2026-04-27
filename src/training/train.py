@@ -9,13 +9,14 @@ from src.utils import set_seed
 from src.training.loss import get_criterion
 from src.training.callbacks import EarlyStopping
 
-def train_model(train_loader, val_loader, encoder, decoder, vocab, num_epochs=10, learning_rate=1e-3):
+def train_model(train_loader, val_loader, encoder, decoder, vocab,config):
     # 1. Setup ban đầu và Cố định Seed
     set_seed(42) # Đảm bảo reproducibility 
     
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     encoder, decoder = encoder.to(device), decoder.to(device)
-    
+    learning_rate = config['training']['learning_rate']
+    num_epochs = config['training']['num_epochs']
     # 2. Khởi tạo Loss, Optimizer và Callbacks
     criterion = get_criterion(vocab)
     optimizer = optim.Adam(decoder.parameters(), lr=learning_rate) # Tối ưu hóa Adam 
