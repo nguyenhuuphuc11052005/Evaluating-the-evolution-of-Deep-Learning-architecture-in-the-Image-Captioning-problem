@@ -28,18 +28,14 @@ class EarlyStopping:
             self.save_checkpoint(val_loss, model_state, optimizer_state, epoch)
             self.counter = 0
 
-    def save_checkpoint(self, val_loss, encoder, decoder, optimizer, epoch):
-        print(f"   [Checkpoint] Validation Loss giảm ({self.best_loss:.4f} --> {val_loss:.4f}). Đã lưu mô hình!")
+    def save_checkpoint(self, val_loss, model_state, optimizer_state, epoch):
+        print(f"   [Checkpoint] Validation Loss tốt nhất ({val_loss:.4f}). Đã lưu mô hình!")
         
-        # Trích xuất state_dict an toàn, xử lý cả trường hợp dùng DataParallel (Multi-GPU)
-        enc_state = encoder.module.state_dict() if isinstance(encoder, torch.nn.DataParallel) else encoder.state_dict()
-        dec_state = decoder.module.state_dict() if isinstance(decoder, torch.nn.DataParallel) else decoder.state_dict()
-
         checkpoint = {
             'epoch': epoch,
-            'encoder_state_dict': enc_state,
-            'decoder_state_dict': dec_state,
-            'optimizer_state_dict': optimizer.state_dict(),
+            'encoder_state_dict': model_state['encoder'],
+            'decoder_state_dict': model_state['decoder'],
+            'optimizer_state_dict': optimizer_state,
             'val_loss': val_loss
         }
         torch.save(checkpoint, self.save_path)
