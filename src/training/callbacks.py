@@ -14,18 +14,18 @@ class EarlyStopping:
         # Đảm bảo thư mục lưu checkpoint luôn tồn tại
         os.makedirs(os.path.dirname(self.save_path), exist_ok=True)
 
-    def __call__(self, val_loss, encoder, decoder, optimizer, epoch):
+    def __call__(self, val_loss, model_state, optimizer_state, epoch):
         if self.best_loss is None:
             self.best_loss = val_loss
-            self.save_checkpoint(val_loss, encoder, decoder, optimizer, epoch)
-        elif val_loss > self.best_loss - self.min_delta:
+            self.save_checkpoint(val_loss, model_state, optimizer_state, epoch)
+        elif val_loss > self.best_loss - self.delta:
             self.counter += 1
-            print(f"   [EarlyStopping] Cảnh báo: {self.counter} / {self.patience} (Best: {self.best_loss:.4f})")
+            print(f"=> EarlyStopping: Không cải thiện ({self.counter} / {self.patience})")
             if self.counter >= self.patience:
                 self.early_stop = True
         else:
             self.best_loss = val_loss
-            self.save_checkpoint(val_loss, encoder, decoder, optimizer, epoch)
+            self.save_checkpoint(val_loss, model_state, optimizer_state, epoch)
             self.counter = 0
 
     def save_checkpoint(self, val_loss, encoder, decoder, optimizer, epoch):

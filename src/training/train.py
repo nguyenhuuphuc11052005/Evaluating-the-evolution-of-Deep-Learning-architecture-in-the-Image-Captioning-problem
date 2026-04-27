@@ -96,7 +96,12 @@ def train_model(train_loader, val_loader, encoder, decoder, vocab,config):
         }
         
         # Đưa vào EarlyStopping để tự đánh giá và lưu checkpoint 
-        early_stopping(avg_val_loss, model_state, optimizer.state_dict(), epoch)
+        early_stopping(
+            val_loss=avg_val_loss, 
+            model_state=model_state, 
+            optimizer_state=optimizer.state_dict(), 
+            epoch=epoch
+        )
         
         if early_stopping.early_stop:
             logger.info("=> MÔ HÌNH ĐÃ HỘI TỤ. KÍCH HOẠT EARLY STOPPING!")
