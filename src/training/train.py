@@ -15,10 +15,7 @@ def train_model(train_loader, val_loader, encoder, decoder, vocab,config):
     
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     encoder, decoder = encoder.to(device), decoder.to(device)
-    if torch.cuda.device_count() > 1:
-        logger.info(f"Kích hoạt chạy song song trên {torch.cuda.device_count()} GPUs!")
-        encoder = nn.DataParallel(encoder)
-        decoder = nn.DataParallel(decoder)
+    
 
     learning_rate = config['training']['learning_rate']
     num_epochs = config['training']['num_epochs']
@@ -30,6 +27,10 @@ def train_model(train_loader, val_loader, encoder, decoder, vocab,config):
     # 3. Quản lý thực nghiệm với TensorBoard
     # Ghi log biểu đồ tự động 
     logger, log_dir = setup_logger(config['experiment_name'])
+    if torch.cuda.device_count() > 1:
+        logger.info(f"Kích hoạt chạy song song trên {torch.cuda.device_count()} GPUs!")
+        encoder = nn.DataParallel(encoder)
+        decoder = nn.DataParallel(decoder)
     writer = SummaryWriter(log_dir="experiments/logs/run_baseline")
     logger.info(f"Bắt đầu thực nghiệm: {config['experiment_name']}")
     logger.info(f"Cấu hình: {config}")
