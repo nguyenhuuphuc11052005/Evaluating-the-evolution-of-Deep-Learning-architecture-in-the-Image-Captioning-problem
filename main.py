@@ -3,7 +3,7 @@ import json
 import torch
 import argparse
 import torchvision.transforms as transforms
-import torch.distributed as dist
+# import torch.distributed as dist
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -26,7 +26,7 @@ def build_vocab_from_json(json_path, freq_threshold=5):
     return vocab
 
 def main(config_path):
-    dist.init_process_group(backend="nccl")
+    # dist.init_process_group(backend="nccl")
     local_rank = int(os.environ["LOCAL_RANK"])
     torch.cuda.set_device(local_rank)
     # 1. Đọc file cấu hình YAML
