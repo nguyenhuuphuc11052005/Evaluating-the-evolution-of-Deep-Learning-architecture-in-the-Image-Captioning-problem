@@ -1,3 +1,5 @@
+import os
+
 import torch.nn as nn
 from logging import config
 import torch
@@ -8,8 +10,9 @@ from src.logger import setup_logger
 from src.utils import set_seed
 from src.training.loss import get_criterion
 from src.training.callbacks import EarlyStopping
+import gc
 
-def train_model(train_loader, val_loader, encoder, decoder, vocab,config):
+def train_model(train_loader, val_loader, encoder, decoder, vocab,config,resume_checkpoint=None):
     # 1. Setup ban đầu và Cố định Seed
     set_seed(42) # Đảm bảo reproducibility 
     
@@ -31,9 +34,36 @@ def train_model(train_loader, val_loader, encoder, decoder, vocab,config):
         logger.info(f"Kích hoạt chạy song song trên {torch.cuda.device_count()} GPUs!")
         encoder = nn.DataParallel(encoder)
         decoder = nn.DataParallel(decoder)
+
+    
     writer = SummaryWriter(log_dir="experiments/logs/run_baseline")
-    logger.info(f"Bắt đầu thực nghiệm: {config['experiment_name']}")
-    logger.info(f"Cấu hình: {config}")
+    if resume_checkpoint and os.path.isfile(resume_checkpoint):
+        logger.info(f"=> Đang nạp Checkpoint từ: {resume_checkpoint}")
+        # Map_location giúp nạp an toàn kể cả khi train ở GPU nhưng load ở CPU
+        checkpoint = torch.load(resume_checkpoint, map_location=device)
+        
+        # Nạp trạng thái cho Encoder/Decoder (Xử lý cẩn thận vụ DataParallel)
+        if isinstance(encoder, nn.DataParallel):
+            encoder.module.load_state_dict(checkpoint['encoder_state_dict'])
+        else:
+            encoder.load_state_dict(checkpoint['encoder_state_dict'])
+            
+        if isinstance(decoder, nn.DataParallel):
+            decoder.module.load_state_dict(checkpoint['decoder_state_dict'])
+        else:
+            decoder.load_state_dict(checkpoint['decoder_state_dict'])
+            
+        # Nạp trạng thái cho Optimizer (Giữ lại gia tốc học của Adam)
+        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        
+        # Cập nhật epoch bắt đầu và loss tốt nhất
+        start_epoch = checkpoint['epoch'] + 1
+        early_stopping.best_loss = checkpoint['val_loss']
+        
+        logger.info(f"=> Đã nạp thành công! Tiếp tục huấn luyện từ Epoch {start_epoch + 1}")
+    else:
+        logger.info(f"Bắt đầu huấn luyện từ đầu: {config['experiment_name']}")
+        logger.info(f"Cấu hình: {config}")
     
     for epoch in range(num_epochs):
         # ================= HUẤN LUYỆN (TRAIN) =================
@@ -114,6 +144,10 @@ def train_model(train_loader, val_loader, encoder, decoder, vocab,config):
         if early_stopping.early_stop:
             logger.info("=> MÔ HÌNH ĐÃ HỘI TỤ. KÍCH HOẠT EARLY STOPPING!")
             break
+        # Dọn dẹp bộ nhớ GPU sau mỗi epoch
+        gc.collect()
+        torch.cuda.empty_cache()
+        
 
     writer.close()
     logger.info("Huấn luyện hoàn tất!")

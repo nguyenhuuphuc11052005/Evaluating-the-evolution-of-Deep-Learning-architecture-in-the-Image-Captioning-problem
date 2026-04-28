@@ -49,8 +49,8 @@ def main(config_path):
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     ])
     
-    train_loader = get_loader(root_dir, train_ann_file, vocab, transform, batch_size=batch_size)
-    val_loader = get_loader(root_dir, val_ann_file, vocab, transform, batch_size=batch_size)
+    train_loader = get_loader(root_dir, train_ann_file, vocab, transform, batch_size=batch_size,num_workers =0)
+    val_loader = get_loader(root_dir, val_ann_file, vocab, transform, batch_size=batch_size, num_workers =0)
     
     # 4. Khởi tạo Mô hình dựa trên biến cấu hình
     embed_size = config['model']['embed_size']
