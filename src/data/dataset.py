@@ -1,7 +1,6 @@
 import os
 import torch
 from torch.utils.data import Dataset, DataLoader
-from torch.utils.data.distributed import DistributedSampler
 from torch.nn.utils.rnn import pad_sequence
 from PIL import Image
 from pycocotools.coco import COCO
@@ -63,21 +62,15 @@ class CapsCollate:
 
         return imgs, targets
 
-def get_loader(root_dir, ann_file, vocab, transform, batch_size=32, is_ddp=True):
-    dataset = CocoDataset(root_dir, ann_file, vocab, transform)
+def get_loader(root_dir, ann_file, vocab, transform, batch_size=32, num_workers=0, limit=50000):
+    dataset = CocoDataset(root_dir, ann_file, vocab, transform, limit)
     pad_idx = vocab.stoi["<pad>"]
-
-    # Nếu chạy DDP, dùng DistributedSampler và TẮT shuffle của DataLoader
-    sampler = DistributedSampler(dataset) if is_ddp else None
-    shuffle = False if is_ddp else True
 
     loader = DataLoader(
         dataset=dataset,
         batch_size=batch_size,
-        num_workers=0,        # Giữ nguyên 0 để tránh nổ RAM
-        pin_memory=False,     # Giữ nguyên False
-        shuffle=shuffle,      # Phải để False nếu dùng Sampler
-        sampler=sampler,      # Cắm bộ chia bài vào đây
+        num_workers=num_workers,
+        shuffle=True, # Trộn ảnh lên cho mỗi epoch
         collate_fn=CapsCollate(pad_idx=pad_idx)
     )
     return loader

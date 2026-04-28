@@ -54,8 +54,8 @@ def main(config_path):
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     ])
     
-    train_loader = get_loader(root_dir, train_ann_file, vocab, transform, batch_size=batch_size, is_ddp=True)
-    val_loader = get_loader(root_dir, val_ann_file, vocab, transform, batch_size=batch_size, is_ddp=True)
+    train_loader = get_loader(root_dir, train_ann_file, vocab, transform, batch_size=batch_size,num_workers =2)
+    val_loader = get_loader(root_dir, val_ann_file, vocab, transform, batch_size=batch_size, num_workers =2)
     
     # 4. Khởi tạo Mô hình dựa trên biến cấu hình
     embed_size = config['model']['embed_size']
@@ -82,7 +82,6 @@ def main(config_path):
         vocab=vocab, 
         config=config  
     )
-    dist.destroy_process_group()
 
 if __name__ == "__main__":
     # Sử dụng Argparse để truyền đường dẫn file config từ Terminal
