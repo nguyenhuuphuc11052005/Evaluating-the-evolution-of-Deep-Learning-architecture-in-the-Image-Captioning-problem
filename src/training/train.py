@@ -61,7 +61,7 @@ def train_model(train_loader, val_loader, encoder, decoder, vocab, config, resum
         logger.info(f"Bắt đầu huấn luyện từ đầu: {config['experiment_name']}")
 
     # 4. BỌC MODEL VÀO DDP
-    encoder = DDP(encoder, device_ids=[local_rank])
+    # encoder = DDP(encoder, device_ids=[local_rank])
     decoder = DDP(decoder, device_ids=[local_rank])
 
     num_epochs = config['training']['num_epochs']
