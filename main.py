@@ -3,6 +3,7 @@ import json
 import torch
 import argparse
 import torchvision.transforms as transforms
+import torch.distributed as dist
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -12,6 +13,7 @@ from src.models.encoder import ResNet50Encoder
 from src.models.decoder_lstm import LSTMDecoder
 from src.training.train import train_model
 from src.utils import set_seed, load_config
+
 
 def build_vocab_from_json(json_path, freq_threshold=5):
     print(f"Đang phân tích ngôn ngữ từ: {json_path}...")
@@ -24,6 +26,9 @@ def build_vocab_from_json(json_path, freq_threshold=5):
     return vocab
 
 def main(config_path):
+    dist.init_process_group(backend="nccl")
+    local_rank = int(os.environ["LOCAL_RANK"])
+    torch.cuda.set_device(local_rank)
     # 1. Đọc file cấu hình YAML
     config = load_config(config_path)
     print(f"=== Đang chạy thực nghiệm: {config['experiment_name']} ===")
@@ -49,8 +54,8 @@ def main(config_path):
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     ])
     
-    train_loader = get_loader(root_dir, train_ann_file, vocab, transform, batch_size=batch_size,num_workers =0)
-    val_loader = get_loader(root_dir, val_ann_file, vocab, transform, batch_size=batch_size, num_workers =0)
+    train_loader = get_loader(root_dir, train_ann_file, vocab, transform, batch_size=batch_size, is_ddp=True)
+    val_loader = get_loader(root_dir, val_ann_file, vocab, transform, batch_size=batch_size, is_ddp=True)
     
     # 4. Khởi tạo Mô hình dựa trên biến cấu hình
     embed_size = config['model']['embed_size']
@@ -77,6 +82,7 @@ def main(config_path):
         vocab=vocab, 
         config=config  
     )
+    dist.destroy_process_group()
 
 if __name__ == "__main__":
     # Sử dụng Argparse để truyền đường dẫn file config từ Terminal
