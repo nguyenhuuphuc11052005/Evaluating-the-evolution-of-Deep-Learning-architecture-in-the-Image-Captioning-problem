@@ -27,8 +27,8 @@ def build_vocab_from_json(json_path, freq_threshold=5):
 
 def main(config_path):
     # dist.init_process_group(backend="nccl")
-    local_rank = int(os.environ["LOCAL_RANK"])
-    torch.cuda.set_device(local_rank)
+    # local_rank = int(os.environ["LOCAL_RANK"])
+    # torch.cuda.set_device(local_rank)
     # 1. Đọc file cấu hình YAML
     config = load_config(config_path)
     print(f"=== Đang chạy thực nghiệm: {config['experiment_name']} ===")
