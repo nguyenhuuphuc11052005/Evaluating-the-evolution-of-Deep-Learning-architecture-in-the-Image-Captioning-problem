@@ -22,21 +22,32 @@ def train_model(train_loader, val_loader, encoder, decoder, vocab,config,resume_
     scaler = amp.GradScaler() # Khởi tạo GradScaler cho Mixed Precision Training
     learning_rate = config['training']['learning_rate']
     num_epochs = config['training']['num_epochs']
+    exp_name = config['experiment_name']
+
+    # ================= CẬP NHẬT ĐƯỜNG DẪN ĐỘNG TẠI ĐÂY =================
+    # 1. Đường dẫn lưu Checkpoint cho riêng mô hình này
+    checkpoint_dir = os.path.join("experiments/checkpoints", exp_name)
+    os.makedirs(checkpoint_dir, exist_ok=True) # Tự động tạo thư mục nếu chưa có
+    
+    # 2. Đường dẫn lưu log TensorBoard cho riêng mô hình này
+    tb_log_dir = os.path.join("experiments/logs", exp_name)
+    writer = SummaryWriter(log_dir=tb_log_dir)
+
     # 2. Khởi tạo Loss, Optimizer và Callbacks
     criterion = get_criterion(vocab)
     optimizer = optim.Adam(decoder.parameters(), lr=learning_rate) # Tối ưu hóa Adam 
-    early_stopping = EarlyStopping(patience=3, save_path="experiments/checkpoints")
+    early_stopping = EarlyStopping(patience=3, save_path=checkpoint_dir)
     
     # 3. Quản lý thực nghiệm với TensorBoard
     # Ghi log biểu đồ tự động 
-    logger, log_dir = setup_logger(config['experiment_name'])
+    logger, log_dir = setup_logger(exp_name)
     if torch.cuda.device_count() > 1:
         logger.info(f"Kích hoạt chạy song song trên {torch.cuda.device_count()} GPUs!")
         encoder = nn.DataParallel(encoder)
         decoder = nn.DataParallel(decoder)
 
     
-    writer = SummaryWriter(log_dir="experiments/logs/run_baseline")
+    # 4. Xử lý Checkpoint nếu có (Tiếp tục huấn luyện từ checkpoint)
     if resume_checkpoint and os.path.isfile(resume_checkpoint):
         logger.info(f"=> Đang nạp Checkpoint từ: {resume_checkpoint}")
         # Map_location giúp nạp an toàn kể cả khi train ở GPU nhưng load ở CPU
@@ -81,8 +92,17 @@ def train_model(train_loader, val_loader, encoder, decoder, vocab,config,resume_
                     features = encoder(imgs)
                 outputs = decoder(features, captions)
                 
-                outputs = outputs.reshape(-1, outputs.shape[2])
-                targets = captions.reshape(-1)
+                # --- FIX LỖI SEQUENCE LENGTH (CHO TRAIN) ---
+                if outputs.size(1) < captions.size(1):
+                    # Transformer: Dịch target sang phải, ép bộ nhớ liên tục
+                    targets = captions[:, 1:].contiguous().view(-1)
+                else:
+                    # LSTM: Giữ nguyên
+                    targets = captions.contiguous().view(-1)
+
+                # Ép outputs liên tục và đổi shape
+                outputs = outputs.contiguous().view(-1, outputs.size(-1))
+                
                 loss = criterion(outputs, targets)
 
             # Backward pass và Cập nhật trọng số 
@@ -111,9 +131,15 @@ def train_model(train_loader, val_loader, encoder, decoder, vocab,config,resume_
                 
                 features = encoder(imgs)
                 outputs = decoder(features, captions)
+                
+                if outputs.size(1) < captions.size(1):
+                    # Dành cho Transformer: Dịch target sang phải 1 bước (bỏ <sos>)
+                    targets = captions[:, 1:].reshape(-1)
+                else:
+                    # Dành cho LSTM: Giữ nguyên do vector ảnh đã bù vào độ dài
+                    targets = captions.reshape(-1)
 
-                outputs = outputs.reshape(-1, outputs.shape[2])
-                targets = captions.reshape(-1)
+                outputs = outputs.reshape(-1, outputs.shape[-1])
                 loss = criterion(outputs, targets)
                 
                 val_loss += loss.item()
