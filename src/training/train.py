@@ -32,11 +32,11 @@ def train_model(train_loader, val_loader, encoder, decoder, vocab,config,resume_
     # 2. Đường dẫn lưu log TensorBoard cho riêng mô hình này
     tb_log_dir = os.path.join("experiments/logs", exp_name)
     writer = SummaryWriter(log_dir=tb_log_dir)
-
+    model_save_path = os.path.join(checkpoint_dir, "best_model.pth")
     # 2. Khởi tạo Loss, Optimizer và Callbacks
     criterion = get_criterion(vocab)
     optimizer = optim.Adam(decoder.parameters(), lr=learning_rate) # Tối ưu hóa Adam 
-    early_stopping = EarlyStopping(patience=3, save_path=checkpoint_dir)
+    early_stopping = EarlyStopping(patience=3, save_path=model_save_path)
     
     # 3. Quản lý thực nghiệm với TensorBoard
     # Ghi log biểu đồ tự động 
