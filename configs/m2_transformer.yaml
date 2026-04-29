@@ -1,0 +1,19 @@
+experiment_name: "m2_transformer_run1"
+
+model:
+  type: "m2_transformer"
+  embed_size: 512       # Kích thước vector chuẩn của Transformer
+  num_heads: 8          # Số lượng đầu Attention
+  num_layers: 3         # 3 lớp Encoder và 3 lớp Decoder
+  max_seq_len: 50       # Độ dài tối đa của câu caption
+
+training:
+  batch_size: 32        # Transformer ngốn VRAM hơn LSTM rất nhiều
+  learning_rate: 0.0001 # 1e-4 (Learning rate chuẩn cho Transformer)
+  num_epochs: 15
+  patience: 3
+
+data:
+  root_dir: "data/data/ms_coco/train2014"
+  train_ann_file: "data/data/ms_coco/annotations/subset_train.json"
+  val_ann_file: "data/data/ms_coco/annotations/subset_val.json"
