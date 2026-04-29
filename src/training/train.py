@@ -86,6 +86,10 @@ def train_model(train_loader, val_loader, encoder, decoder, vocab,config,resume_
         for imgs, captions in train_loop:
             imgs, captions = imgs.to(device), captions.to(device)
 
+            max_len = config['model'].get('max_seq_len', 100)
+            if captions.size(1) > max_len:
+                captions = captions[:, :max_len]# Cắt bỏ những từ vượt quá giới hạn
+
             # Trích xuất đặc trưng (Không tính gradient cho ảnh)
             with amp.autocast(): 
                 with torch.no_grad():
@@ -102,7 +106,7 @@ def train_model(train_loader, val_loader, encoder, decoder, vocab,config,resume_
 
                 # Ép outputs liên tục và đổi shape
                 outputs = outputs.contiguous().view(-1, outputs.size(-1))
-                
+
                 loss = criterion(outputs, targets)
 
             # Backward pass và Cập nhật trọng số 
@@ -129,6 +133,10 @@ def train_model(train_loader, val_loader, encoder, decoder, vocab,config,resume_
             for imgs, captions in val_loop:
                 imgs, captions = imgs.to(device), captions.to(device)
                 
+                max_len = config['model'].get('max_seq_len', 100)
+                if captions.size(1) > max_len:
+                    captions = captions[:, :max_len]# Cắt bỏ những từ vượt quá giới hạn
+
                 features = encoder(imgs)
                 outputs = decoder(features, captions)
                 
