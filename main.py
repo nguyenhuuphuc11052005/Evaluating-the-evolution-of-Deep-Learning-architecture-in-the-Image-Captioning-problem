@@ -9,8 +9,9 @@ warnings.filterwarnings("ignore")
 
 from src.data.build_vocab import Vocabulary
 from src.data.dataset import get_loader
-from src.models.encoder import ResNet50Encoder
+from src.models.encoder import ResNet50Encoder,ResNet50SpatialEncoder
 from src.models.decoder_lstm import LSTMDecoder
+from src.models.m2_transformer import M2TransformerDecoder
 from src.training.train import train_model
 from src.utils import set_seed, load_config
 
@@ -66,11 +67,15 @@ def main(config_path):
         hidden_size = config['model']['hidden_size']
         num_layers = config['model']['num_layers']
         decoder = LSTMDecoder(embed_size, hidden_size, vocab_size, num_layers)
-    elif config['model']['type'] == 'transformer':
-        print("-> Khởi tạo Transformer Decoder...")
-        # Lát nữa code xong Transformer thì bạn import và khởi tạo ở đây
-        # decoder = TransformerDecoder(...) 
-        pass 
+    elif config['model']['type'] == 'm2_transformer':
+        print("-> Khởi tạo SOTA: ResNet50 (Spatial) + M2 Transformer Decoder...")
+        # Sử dụng Encoder lấy lưới 7x7 thay vì vector 1D
+        encoder = ResNet50SpatialEncoder(embed_size) 
+        
+        num_heads = config['model']['num_heads']
+        num_layers = config['model']['num_layers']
+        max_seq_len = config['model']['max_seq_len']
+        decoder = M2TransformerDecoder(vocab_size, embed_size, num_heads, num_layers, max_seq_len)
     
     
     # 5. Huấn luyện
