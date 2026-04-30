@@ -49,14 +49,23 @@ def main(config_path):
     vocab = build_vocab_from_json(train_ann_file, freq_threshold=5)
     vocab_size = len(vocab)
     
-    transform = transforms.Compose([
+    train_transform = transforms.Compose([
+        transforms.Resize((256, 256)),
+        transforms.RandomCrop((224, 224)), # Cắt ngẫu nhiên
+        transforms.RandomHorizontalFlip(p=0.5), # Lật ngang ngẫu nhiên 50%
+        transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2), # Đổi màu nhẹ
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+    ])
+
+    val_transform = transforms.Compose([
         transforms.Resize((224, 224)),
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     ])
     
-    train_loader = get_loader(root_dir, train_ann_file, vocab, transform, batch_size=batch_size,num_workers =2)
-    val_loader = get_loader(root_dir, val_ann_file, vocab, transform, batch_size=batch_size, num_workers =2)
+    train_loader = get_loader(root_dir, train_ann_file, vocab, train_transform, batch_size=batch_size,num_workers =2)
+    val_loader = get_loader(root_dir, val_ann_file, vocab, val_transform, batch_size=batch_size, num_workers =2)
     
     # 4. Khởi tạo Mô hình dựa trên biến cấu hình
     embed_size = config['model']['embed_size']
