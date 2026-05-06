@@ -5,7 +5,7 @@ import torch
 from transformers import BlipProcessor, BlipForConditionalGeneration
 from torch.utils.tensorboard import SummaryWriter
 from accelerate import Accelerator  # THÊM DÒNG NÀY
-
+from accelerate.utils import DistributedDataParallelKwargs # THÊM DÒNG NÀY
 from src.data.blip_dataset import get_blip_loader
 from src.training.train_blip import train_blip_model
 from src.logger import setup_logger
@@ -17,7 +17,9 @@ def main(config_path):
     exp_name = config['experiment_name']
     
     # KHỞI TẠO ACCELERATOR NGAY TỪ ĐẦU
-    accelerator = Accelerator()
+    # Bật cờ tìm kiếm tham số thừa để tránh lỗi DDP với BLIP
+    ddp_kwargs = DistributedDataParallelKwargs(find_unused_parameters=True)
+    accelerator = Accelerator(kwargs_handlers=[ddp_kwargs])
     
     logger, log_dir = setup_logger(exp_name)
     
