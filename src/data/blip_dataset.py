@@ -39,11 +39,20 @@ class BlipCocoDataset(Dataset):
     def __getitem__(self, idx):
         ann = self.annotations[idx]
         
-        # Tùy thuộc vào format JSON của bạn, key có thể là 'file_name' hoặc 'image_id'
-        img_name = ann.get('file_name', f"{ann.get('image_id'):012d}.jpg")
+        # Lấy ID của bức ảnh
+        image_id = ann.get('image_id')
+        
+        # Tự động nhận diện tiền tố dựa vào tên thư mục
+        if 'train2014' in self.root_dir:
+            img_name = ann.get('file_name', f"COCO_train2014_{image_id:012d}.jpg")
+        elif 'val2014' in self.root_dir:
+            img_name = ann.get('file_name', f"COCO_val2014_{image_id:012d}.jpg")
+        else:
+            img_name = ann.get('file_name', f"{image_id:012d}.jpg") # Dự phòng
+
         img_path = os.path.join(self.root_dir, img_name)
 
-        # Mở ảnh và dọn rác ngay bằng 'with' (Kỹ thuật cứu RAM đã học ở vòng trước)
+        # Mở ảnh và dọn rác ngay bằng 'with'
         with Image.open(img_path) as img:
             image = img.convert("RGB")
 
