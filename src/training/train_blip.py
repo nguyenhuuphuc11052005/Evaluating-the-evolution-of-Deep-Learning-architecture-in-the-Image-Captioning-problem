@@ -1,15 +1,18 @@
 import os
 import torch
-import torch.nn as nn
 import torch.optim as optim
 from tqdm import tqdm
 import gc
 
-def train_blip_model(train_loader, val_loader, model, processor, config, logger, writer, checkpoint_dir):
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+def train_blip_model(train_loader, val_loader, model, processor, config, logger, writer, checkpoint_dir, accelerator):
     
-    # Sử dụng AdamW thay vì Adam (AdamW tối ưu tốt hơn cho Transformer)
     optimizer = optim.AdamW(model.parameters(), lr=config['training']['learning_rate'])
+    
+    # --- PHÉP THUẬT CỦA ACCELERATE ---
+    # Tự động chia batch, chia model, đồng bộ GPU mà không cần viết code DDP
+    model, optimizer, train_loader, val_loader = accelerator.prepare(
+        model, optimizer, train_loader, val_loader
+    )
     
     best_val_loss = float('inf')
     patience = config['training'].get('patience', 3)
@@ -19,20 +22,22 @@ def train_blip_model(train_loader, val_loader, model, processor, config, logger,
         # ==================== TRAIN LOOP ====================
         model.train()
         train_loss = 0.0
-        train_loop = tqdm(train_loader, desc=f"Epoch {epoch+1} [Train BLIP]")
+        
+        # Chỉ hiển thị thanh tiến trình trên GPU chính cho đỡ rối
+        train_loop = tqdm(train_loader, desc=f"Epoch {epoch+1} [Train]", disable=not accelerator.is_local_main_process)
         
         for batch in train_loop:
-            batch = {k: v.to(device) for k, v in batch.items()}
+            # KHÔNG CẦN DÒNG NÀY NỮA (accelerate đã tự làm): 
+            # batch = {k: v.to(device) for k, v in batch.items()}
             
             optimizer.zero_grad()
             outputs = model(**batch)
             
-            # --- FIX BẪY DATAPARALLEL 1: TÍNH TRUNG BÌNH LOSS TỪ 2 GPU ---
+            # Loss bây giờ đã là 1 số chuẩn, không bị mảng nhiều chiều như DP
             loss = outputs.loss
-            if isinstance(loss, torch.Tensor) and loss.dim() > 0:
-                loss = loss.mean()
-                
-            loss.backward()
+            
+            # THAY THẾ loss.backward() BẰNG:
+            accelerator.backward(loss)
             optimizer.step()
             
             train_loss += loss.item()
@@ -43,48 +48,47 @@ def train_blip_model(train_loader, val_loader, model, processor, config, logger,
         # ==================== VALIDATION LOOP ====================
         model.eval()
         val_loss = 0.0
-        val_loop = tqdm(val_loader, desc=f"Epoch {epoch+1} [Val BLIP]")
+        val_loop = tqdm(val_loader, desc=f"Epoch {epoch+1} [Val]", disable=not accelerator.is_local_main_process)
         
         with torch.no_grad():
             for batch in val_loop:
-                batch = {k: v.to(device) for k, v in batch.items()}
-                
                 outputs = model(**batch)
-                
-                # --- TÍNH TRUNG BÌNH LOSS CHO VAL ---
                 loss = outputs.loss
-                if isinstance(loss, torch.Tensor) and loss.dim() > 0:
-                    loss = loss.mean()
-                    
                 val_loss += loss.item()
                 val_loop.set_postfix(loss=loss.item())
                 
         avg_val_loss = val_loss / len(val_loader)
         
-        # ==================== GHI LOG VÀ TENSORBOARD ====================
-        logger.info(f"Epoch [{epoch+1}] - Train Loss: {avg_train_loss:.4f} | Val Loss: {avg_val_loss:.4f}")
-        writer.add_scalar("Loss/Train", avg_train_loss, epoch)
-        writer.add_scalar("Loss/Validation", avg_val_loss, epoch)
+        # ==================== GHI LOG VÀ CHECKPOINT ====================
+        # Đợi cả 2 GPU chạy xong epoch mới ghi log
+        accelerator.wait_for_everyone() 
         
-        # ==================== EARLY STOPPING & CHECKPOINT ====================
-        if avg_val_loss < best_val_loss:
-            best_val_loss = avg_val_loss
-            patience_counter = 0
-            logger.info(f"   => [Checkpoint] Val loss đạt đỉnh mới. Đang lưu tại {checkpoint_dir}...")
+        if accelerator.is_local_main_process:
+            logger.info(f"Epoch [{epoch+1}] - Train Loss: {avg_train_loss:.4f} | Val Loss: {avg_val_loss:.4f}")
+            writer.add_scalar("Loss/Train", avg_train_loss, epoch)
+            writer.add_scalar("Loss/Validation", avg_val_loss, epoch)
             
-            # --- FIX BẪY DATAPARALLEL 2: BÓC VỎ MODULE TRƯỚC KHI LƯU ---
-            model_to_save = model.module if hasattr(model, 'module') else model
-            model_to_save.save_pretrained(checkpoint_dir)
-            processor.save_pretrained(checkpoint_dir)
-        else:
-            patience_counter += 1
-            logger.info(f"   => Val loss không cải thiện ({patience_counter}/{patience})")
-            if patience_counter >= patience:
-                logger.info("=> KÍCH HOẠT EARLY STOPPING! Kết thúc huấn luyện.")
-                break
+            if avg_val_loss < best_val_loss:
+                best_val_loss = avg_val_loss
+                patience_counter = 0
+                logger.info(f"   => [Checkpoint] Val loss đạt đỉnh mới. Đang lưu...")
                 
-        # Dọn rác bộ nhớ
+                # Bóc model ra khỏi lớp vỏ bọc song song để lưu chuẩn định dạng
+                unwrapped_model = accelerator.unwrap_model(model)
+                unwrapped_model.save_pretrained(checkpoint_dir)
+                processor.save_pretrained(checkpoint_dir)
+            else:
+                patience_counter += 1
+                logger.info(f"   => Val loss không cải thiện ({patience_counter}/{patience})")
+                
+        # Đồng bộ lệnh Early Stopping cho 2 GPU
+        if patience_counter >= patience:
+            if accelerator.is_local_main_process:
+                logger.info("=> KÍCH HOẠT EARLY STOPPING!")
+            break
+                
         gc.collect()
         torch.cuda.empty_cache()
 
-    writer.close()
+    if accelerator.is_local_main_process:
+        writer.close()
