@@ -15,7 +15,20 @@ class BlipCocoDataset(Dataset):
         """
         self.root_dir = root_dir
         with open(ann_file, 'r', encoding='utf-8') as f:
-            self.annotations = json.load(f)
+            raw_data = json.load(f)
+            
+        # --- FIX BUG LỖI KEYERROR ---
+        # Ép kiểu dữ liệu về dạng List (Danh sách) để DataLoader có thể lấy theo index
+        if isinstance(raw_data, dict):
+            if 'annotations' in raw_data:
+                # Dành cho format chuẩn của bộ MS COCO
+                self.annotations = raw_data['annotations']
+            else:
+                # Dành cho các file JSON tùy chỉnh lưu dạng Dictionary
+                self.annotations = list(raw_data.values())
+        else:
+            # Nếu JSON đã là List sẵn thì tuyệt vời, giữ nguyên!
+            self.annotations = raw_data
             
         self.processor = processor
         self.max_target_length = max_target_length
