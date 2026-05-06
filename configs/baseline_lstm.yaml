@@ -14,6 +14,6 @@ training:
   patience: 3            # Cho Early Stopping
 
 data:
-  root_dir: "data/ms_coco/train2014"
-  train_ann_file: "data/ms_coco/annotations/subset_train.json"
-  val_ann_file: "data/ms_coco/annotations/subset_val.json"
+  root_dir: "demo_dataset" #"data/ms_coco/train2014"
+  train_ann_file: "demo_dataset/demo_captions.json" #"data/ms_coco/annotations/subset_train.json"
+  val_ann_file: "demo_dataset/demo_captions.json" #"data/ms_coco/annotations/subset_val.json"

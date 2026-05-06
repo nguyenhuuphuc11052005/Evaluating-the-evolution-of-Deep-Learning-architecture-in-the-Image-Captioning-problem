@@ -1,0 +1,12 @@
+experiment_name: "blip_finetune_v1"
+
+training:
+  batch_size: 16        # Bạn có thể tăng lên 32 nếu VRAM Kaggle vẫn còn dư dả
+  learning_rate: 5e-5   # Learning rate cho Fine-tuning phải RẤT NHỎ (nhỏ hơn train từ đầu 10 lần)
+  num_epochs: 5         # BLIP rất thông minh, thường 3-5 epoch là hội tụ
+  patience: 2
+
+data:
+  root_dir: "data/ms_coco/train2014"
+  train_ann_file: "data/ms_coco/annotations/subset_train.json"
+  val_ann_file: "data/ms_coco/annotations/subset_val.json"
