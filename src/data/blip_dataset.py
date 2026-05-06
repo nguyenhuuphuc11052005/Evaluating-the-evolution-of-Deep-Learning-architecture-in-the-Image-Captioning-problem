@@ -97,7 +97,8 @@ def get_blip_loader(root_dir, ann_file, processor, batch_size=16, is_train=True)
         dataset=dataset,
         batch_size=batch_size,
         shuffle=is_train,
-        num_workers=0,      # Giữ nguyên 0 để an toàn RAM trên Kaggle
-        pin_memory=False    # Tắt để giữ mát RAM
+        num_workers=1,      # Giữ nguyên 0 để an toàn RAM trên Kaggle
+        pin_memory=True ,   # Bật để tăng tốc độ tải dữ liệu
+        prefetch_factor=2     # Tùy chọn: Chuẩn bị trước 2 batch trong lúc GPU đang train
     )
     return loader
