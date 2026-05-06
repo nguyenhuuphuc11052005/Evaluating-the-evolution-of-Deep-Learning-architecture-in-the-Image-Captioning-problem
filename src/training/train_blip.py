@@ -8,39 +8,32 @@ from torch.utils.tensorboard import SummaryWriter
 # Tận dụng lại hệ thống Logger từ các mô hình trước
 from src.logger import setup_logger 
 
-def train_blip_model(train_loader, val_loader, model, processor, config):
-    # 1. Khởi tạo Hệ thống Logging & TensorBoard
-    # Tự động tạo thư mục log dựa trên tên experiment trong file yaml
-    logger, log_dir = setup_logger(config['experiment_name'])
-    writer = SummaryWriter(log_dir=log_dir)
-    
-    logger.info(f"=== BẮT ĐẦU HUẤN LUYỆN BLIP: {config['experiment_name']} ===")
-
-    # 2. Khởi tạo thiết bị và Optimizer
+def train_blip_model(train_loader, val_loader, model, processor, config, logger, writer, checkpoint_dir):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = model.to(device)
     
+    # Sử dụng AdamW (Biến thể tốt nhất cho Transformer)
     optimizer = optim.AdamW(model.parameters(), lr=config['training']['learning_rate'])
     
-    # Thư mục lưu Checkpoint được đặt tên theo experiment
-    save_dir = os.path.join("experiments/checkpoints", config['experiment_name'])
-    os.makedirs(save_dir, exist_ok=True)
-    
     best_val_loss = float('inf')
+    patience = config['training'].get('patience', 3)
+    patience_counter = 0
 
-    # 3. Vòng lặp huấn luyện
     for epoch in range(config['training']['num_epochs']):
-        # --- VÒNG LẶP TRAIN ---
+        # ==================== TRAIN LOOP ====================
         model.train()
         train_loss = 0.0
         train_loop = tqdm(train_loader, desc=f"Epoch {epoch+1} [Train BLIP]")
         
         for batch in train_loop:
+            # Đẩy dữ liệu lên GPU
             batch = {k: v.to(device) for k, v in batch.items()}
             
             optimizer.zero_grad()
+            
+            # Hugging Face tự tính CrossEntropy
             outputs = model(**batch)
             loss = outputs.loss
+            
             loss.backward()
             optimizer.step()
             
@@ -49,7 +42,7 @@ def train_blip_model(train_loader, val_loader, model, processor, config):
             
         avg_train_loss = train_loss / len(train_loader)
         
-        # --- VÒNG LẶP VALIDATION ---
+        # ==================== VALIDATION LOOP ====================
         model.eval()
         val_loss = 0.0
         val_loop = tqdm(val_loader, desc=f"Epoch {epoch+1} [Val BLIP]")
@@ -57,32 +50,38 @@ def train_blip_model(train_loader, val_loader, model, processor, config):
         with torch.no_grad():
             for batch in val_loop:
                 batch = {k: v.to(device) for k, v in batch.items()}
+                
                 outputs = model(**batch)
                 loss = outputs.loss
+                
                 val_loss += loss.item()
                 val_loop.set_postfix(loss=loss.item())
                 
         avg_val_loss = val_loss / len(val_loader)
         
-        # --- GHI LOG VÀ TENSORBOARD (Thay thế print) ---
-        logger.info(f"Epoch [{epoch+1}/{config['training']['num_epochs']}] - Train Loss: {avg_train_loss:.4f} | Val Loss: {avg_val_loss:.4f}")
-        
+        # ==================== GHI LOG VÀ TENSORBOARD ====================
+        logger.info(f"Epoch [{epoch+1}] - Train Loss: {avg_train_loss:.4f} | Val Loss: {avg_val_loss:.4f}")
         writer.add_scalar("Loss/Train", avg_train_loss, epoch)
         writer.add_scalar("Loss/Validation", avg_val_loss, epoch)
         
-        # --- LƯU CHECKPOINT ---
+        # ==================== EARLY STOPPING & CHECKPOINT ====================
         if avg_val_loss < best_val_loss:
             best_val_loss = avg_val_loss
-            logger.info(f"=> [Checkpoint] Validation Loss đạt kỷ lục mới! Đang lưu mô hình tại: {save_dir}")
+            patience_counter = 0
+            logger.info(f"   => [Checkpoint] Val loss đạt đỉnh mới. Đang lưu tại {checkpoint_dir}...")
             
-            # Lưu trọng số mô hình và file cấu hình Tokenizer
-            model.save_pretrained(save_dir)
-            processor.save_pretrained(save_dir)
-            
-        # Dọn rác bộ nhớ Kaggle
+            # Lưu theo chuẩn Hugging Face
+            model.save_pretrained(checkpoint_dir)
+            processor.save_pretrained(checkpoint_dir)
+        else:
+            patience_counter += 1
+            logger.info(f"   => Val loss không cải thiện ({patience_counter}/{patience})")
+            if patience_counter >= patience:
+                logger.info("=> KÍCH HOẠT EARLY STOPPING! Kết thúc huấn luyện.")
+                break
+                
+        # Ép dọn rác bộ nhớ để cứu RAM
         gc.collect()
         torch.cuda.empty_cache()
 
-    # Đóng luồng ghi
-    logger.info("Hoàn tất quá trình Fine-tuning BLIP!")
     writer.close()
