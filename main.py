@@ -1,6 +1,7 @@
 import os
 import json
 import torch
+import torch.nn as nn
 import argparse
 import torchvision.transforms as transforms
 # import torch.distributed as dist
@@ -14,7 +15,7 @@ from src.models.decoder_lstm import LSTMDecoder
 from src.models.m2_transformer import M2TransformerDecoder
 from src.training.train import train_model
 from src.utils import set_seed, load_config
-
+from src.models.vit_transformer import ViTCaptioningModel
 
 def build_vocab_from_json(json_path, freq_threshold=5):
     print(f"Đang phân tích ngôn ngữ từ: {json_path}...")
@@ -86,7 +87,21 @@ def main(config_path):
         max_seq_len = config['model']['max_seq_len']
         decoder = M2TransformerDecoder(vocab_size, embed_size, num_heads, num_layers, max_seq_len)
     
-    
+    elif config['model']['type'] == 'vit_transformer':
+        print("-> Khởi tạo mô hình: ViT Encoder + Transformer Decoder...")
+        embed_size = config['model']['embed_size']
+        num_heads = config['model']['num_heads']
+        num_layers = config['model']['num_layers']
+        
+        # Model này đã bọc sẵn cả Encoder và Decoder bên trong
+        # Ta khởi tạo nó, sau đó tách nó ra thành biến encoder/decoder giả để đưa vào hàm train cũ
+        full_model = ViTCaptioningModel(vocab_size, embed_size, num_heads, num_layers)
+        
+        # MẸO: Hàm train_model của bạn yêu cầu truyền vào `encoder` và `decoder` rời nhau.
+        # Ở đây ta lừa hàm train một chút: `encoder` chỉ đóng vai trò truyền hình nộm,
+        # vì `full_model` (được gán cho biến `decoder`) sẽ ôm đồm làm toàn bộ việc forward pass.
+        encoder = nn.Identity() 
+        decoder = full_model
     # 5. Huấn luyện
     train_model(
         train_loader=train_loader, 
