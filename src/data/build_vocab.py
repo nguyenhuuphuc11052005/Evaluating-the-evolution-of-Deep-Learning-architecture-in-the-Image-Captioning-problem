@@ -4,6 +4,7 @@ from collections import Counter
 from pycocotools.coco import COCO
 
 nltk.download('punkt')
+nltk.download('punkt_tab') # thêm gói dữ liệu 
 
 class Vocabulary:
     def __init__(self, freq_threshold=5):
