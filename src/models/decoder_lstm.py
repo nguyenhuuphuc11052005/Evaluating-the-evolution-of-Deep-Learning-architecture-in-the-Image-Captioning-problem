@@ -1,7 +1,9 @@
 import torch
 import torch.nn as nn
+from typing import Tuple
+from src.models.base_decoder import BaseDecoder
 
-class LSTMDecoder(nn.Module):
+class LSTMDecoder(BaseDecoder):
     def __init__(self, embed_size, hidden_size, vocab_size, num_layers=1):
         super(LSTMDecoder, self).__init__()
         
@@ -17,7 +19,7 @@ class LSTMDecoder(nn.Module):
         # Dropout để chống Overfitting
         self.dropout = nn.Dropout(0.5)
 
-    def forward(self, features, captions):
+    def forward(self, features: torch.Tensor, captions: torch.Tensor) -> torch.Tensor:
         # features shape: (batch_size, embed_size)
         # captions shape: (batch_size, max_seq_length)
         
@@ -42,20 +44,40 @@ class LSTMDecoder(nn.Module):
         
         return outputs
     
-    def sample(self, features, states=None, max_len=20):
-        # Hàm này dùng để sinh câu (inference) khi test thực tế (không có caption thật mồi vào)
-        sampled_ids = []
-        inputs = features.unsqueeze(1) # (batch_size, 1, embed_size)
+    # def sample(self, features, states=None, max_len=20):
+    #     # Hàm này dùng để sinh câu (inference) khi test thực tế (không có caption thật mồi vào)
+    #     sampled_ids = []
+    #     inputs = features.unsqueeze(1) # (batch_size, 1, embed_size)
         
-        for i in range(max_len):
-            hiddens, states = self.lstm(inputs, states)       # hiddens: (batch_size, 1, hidden_size)
-            outputs = self.linear(hiddens.squeeze(1))         # outputs: (batch_size, vocab_size)
+    #     for i in range(max_len):
+    #         hiddens, states = self.lstm(inputs, states)       # hiddens: (batch_size, 1, hidden_size)
+    #         outputs = self.linear(hiddens.squeeze(1))         # outputs: (batch_size, vocab_size)
             
-            # Chọn ra từ có xác suất cao nhất
-            _, predicted = outputs.max(1)                     # predicted: (batch_size)
-            sampled_ids.append(predicted.item())
+    #         # Chọn ra từ có xác suất cao nhất
+    #         _, predicted = outputs.max(1)                     # predicted: (batch_size)
+    #         sampled_ids.append(predicted.item())
             
-            # Đưa từ vừa dự đoán làm input cho bước tiếp theo
-            inputs = self.embed(predicted).unsqueeze(1)       # inputs: (batch_size, 1, embed_size)
+    #         # Đưa từ vừa dự đoán làm input cho bước tiếp theo
+    #         inputs = self.embed(predicted).unsqueeze(1)       # inputs: (batch_size, 1, embed_size)
             
-        return sampled_ids
+    #     return sampled_ids
+    
+    def embed_token(self, tokens: torch.Tensor):
+        '''
+        Chuyển token ids thành embeddings
+        :param tokens: token ids
+        :return: embeddings
+        '''
+        return self.embed(tokens) # shape: (batch_size, embed_size)
+    def step(self, inputs: torch.Tensor, states=None) -> Tuple[torch.Tensor, tuple]:
+        '''
+        Dự đoán token tiếp theo
+        :param inputs: token embedding hiện tại - shape: (batch_size, 1, embed_size)
+        :param states: hidden state của LSTM
+        :return: logits token tiếp theo
+        '''
+        # forward
+        hidden, state = self.lstm(inputs, states)
+        output = self.linear(hidden.squeeze(1)) # shape: (batch_size, hidden_size)
+        return output, state
+    
