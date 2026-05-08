@@ -1,0 +1,5 @@
+pycocotools
+rouge_score
+tensorboard
+ppyaml
+tqdm
