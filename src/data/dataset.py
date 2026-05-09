@@ -62,7 +62,7 @@ class CapsCollate:
 
         return imgs, targets
 
-def get_loader(root_dir, ann_file, vocab, transform, batch_size=32, num_workers=0, limit=50000):
+def get_loader(root_dir, ann_file, vocab, transform, batch_size=32, num_workers=0, limit=50000, shuffle=True):
     dataset = CocoDataset(root_dir, ann_file, vocab, transform, limit)
     pad_idx = vocab.stoi["<pad>"]
 
