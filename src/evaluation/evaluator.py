@@ -4,7 +4,7 @@ import torch
 import warnings
 # ghi log
 # from logger import logging 
-from typing import List
+from typing import List, Dict, Any
 from src.evaluation.compute_metric import ComputeMetrics
 from tqdm import tqdm
 
@@ -97,17 +97,18 @@ class Evaluator:
         '''
         predictions = []
         with torch.no_grad():
-            for batch, _, _ in tqdm(self.test_loader, desc='Generating Captions'):
-                images = batch[0].to(self.device)
+            for images, captions in tqdm(self.test_loader, desc='Generating Captions'):
+                images = images.to(self.device)
                 # encode image
                 features = self.encoder(images)
                 # generate caption 
-                caption = self.generate_caption(features=features)
+                token_ids = self.search.generate(features)
+                caption = self.decode_caption(token_ids)
                 # thêm vào danh sách
                 predictions.append(caption)
         return predictions
 
-    def evaluate(self):
+    def evaluate(self) -> Dict[str, Any]:
         '''
         Đánh giá mô hình bằng các chỉ số: BLEU, ROUGE, METOR, CIDEr
         '''
@@ -118,7 +119,7 @@ class Evaluator:
         hypotheses = []
         
         with torch.no_grad():
-            for image, _, _, allcaps in tqdm(self.test_loader, desc='Evaluating'):
+            for image, captions in tqdm(self.test_loader, desc='Evaluating'):
                 image = image.to(self.device)
 
                 # encode
@@ -127,32 +128,15 @@ class Evaluator:
                 # sinh prediction 
                 token_ids = self.search.generate(features)
 
-                # sinh caption dự đoán
-                pred_caption = [
-                    self.vocab.itos[idx]
-                    for idx in token_ids
-                    if self.vocab.itos[idx]
-                    not in ['<sos>', '<eos>', '<pad>']
-                ]
+                pred_caption = self.decode_caption(token_ids)
 
                 hypotheses.append(pred_caption)
                 
                 # grouth truth caption 
-                img_caps = allcaps[0].tolist()
-                gt_captions = []
+                img_caps = captions[0].tolist()
+                gt_caption = self.decode_caption(img_caps)
 
-                for cap in img_caps:
-
-                    tokens = [
-                        self.vocab.itos[idx]
-                        for idx in cap
-                        if self.vocab.itos[idx]
-                        not in ['<sos>', '<eos>', '<pad>']
-                    ]
-
-                    gt_captions.append(tokens)
-
-                references.append(gt_captions)
+                references.append([gt_caption.split()])
                 # sanity check
                 assert len(references) == len(hypotheses)
 
