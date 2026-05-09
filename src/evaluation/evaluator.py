@@ -92,60 +92,49 @@ class Evaluator:
         return caption
      
     def generate_predictions(self)->List[str]:
-        '''
-        Sinh caption cho toàn bộ tập test
-        '''
-        predictions = []
-        with torch.no_grad():
-            for images, captions in tqdm(self.test_loader, desc='Generating Captions'):
-                images = images.to(self.device)
-                # encode image
-                features = self.encoder(images)
-                # generate caption 
-                token_ids = self.search.generate(features)
-                caption = self.decode_caption(token_ids)
-                # thêm vào danh sách
-                predictions.append(caption)
-        return predictions
+          predictions = []
+          with torch.no_grad():
+              for images, captions, *others in tqdm(self.test_loader, desc='Generating Captions'):
+                  images = images.to(self.device)
+                  
+                  # Đảm bảo images có 4 chiều [Batch, C, H, W]
+                  if images.dim() == 3:
+                      images = images.unsqueeze(0)
+
+                  features = self.encoder(images)
+                  token_ids = self.search.generate(features)
+                  caption = self.decode_caption(token_ids)
+                  predictions.append(caption)
+          return predictions
 
     def evaluate(self) -> Dict[str, Any]:
-        '''
-        Đánh giá mô hình bằng các chỉ số: BLEU, ROUGE, METOR, CIDEr
-        '''
-        # Danh sách lưu tham chiếu (true captions) và giả thuyết (prediction) cho từng tấm hình
-        # Nếu cho n tấm ảnh, ta có n giả thuyết và tham chiếu a, b, c,... cho từng tấm ảnh, ta cần
-        # references = [[ref1a, ref1b, ref1c], [ref2a, ref2b], ...], hypotheses = [hyp1, hyp2, ...]
-        references = []
-        hypotheses = []
+        references = [] # lưu tham chiếu
+        hypotheses = [] # lưu prediction 
         
         with torch.no_grad():
-            for image, captions in tqdm(self.test_loader, desc='Evaluating'):
+            # tránh lỗi 
+            for image, captions, *others in tqdm(self.test_loader, desc='Evaluating'):
                 image = image.to(self.device)
+                
+                if image.dim() == 3:
+                    image = image.unsqueeze(0)
 
-                # encode
                 features = self.encoder(image)
-
-                # sinh prediction 
                 token_ids = self.search.generate(features)
-
                 pred_caption = self.decode_caption(token_ids)
-
                 hypotheses.append(pred_caption)
                 
-                # grouth truth caption 
-                img_caps = captions[0].tolist()
-                gt_caption = self.decode_caption(img_caps)
+                # xử lý ground truth captions
+                img_refs = []
+                # captions lúc này là tensor  hoặc list
+                for cap in captions: # shape: [batch, max_len]
+                    words = self.decode_caption(cap.tolist()) 
+                    img_refs.append(words)
 
-                references.append([gt_caption.split()])
-                # sanity check
-                assert len(references) == len(hypotheses)
+                references.append(img_refs)
 
-        # tính toán chỉ số
-        metrics = self.metric_computer.compute_all(
-            references,
-            hypotheses
-        )
-
+        # Tính toán chỉ số
+        metrics = self.metric_computer.compute_all(references, hypotheses)
         return metrics
     
     def save_predictions(self, save_path:str='prediction.json')->None:

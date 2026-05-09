@@ -43,32 +43,34 @@ class GreedySearch(BaseSearch):
         super().__init__(decoder, vocab, max_len)
 
     def generate(self, features: torch.Tensor) -> List[int]:
-        '''
-        Sinh caption bằng Greedy Search
-        :param features: vector từ encoder
-        :return: danh sách token ids
-        '''
         sampled_ids = []
-        # input đầu tiên là feature ảnh 
-        inputs = features.squeeze(1) # shape: (batch_size, 1, embed_size)
-        # hidden state ban đầu
-        states = None
+        batch_size = features.size(0)
+        
+        # Đảm bảo input đầu tiên có shape (batch_size, 1, embed_size)
+        # Nếu features là (batch_size, embed_size) -> unsqueeze(1)
+        if features.dim() == 2:
+            inputs = features.unsqueeze(1)
+        else:
+            inputs = features
+
+        # note: có thể dùng khởi tạo state của model
+        states = None 
+        
         for _ in range(self.max_len):
             # predict token tiếp theo
             outputs, states = self.decoder.step(inputs, states)       
-            # hiddens: (batch_size, 1, hidden_size)
-            # outputs: (batch_size, vocab_size)
             
             # Chọn ra từ có xác suất cao nhất
-            predicted = outputs.argmax(dim=1)                 # predicted: (batch_size)
+            predicted = outputs.argmax(dim=1)
+            
             sampled_ids.append(predicted.item())
 
             # Nếu gặp <eos> thì dừng 
-            if predicted == self.end_idx:
+            if predicted.item() == self.end_idx:
                 break
             
             # Đưa từ vừa dự đoán làm input cho bước tiếp theo
-            inputs = self.decoder.embed_token(predicted).unsqueeze(1)       # inputs: (batch_size, 1, embed_size)
+            inputs = self.decoder.embed_token(predicted).unsqueeze(1)
             
         return sampled_ids
 
