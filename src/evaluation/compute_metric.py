@@ -71,10 +71,10 @@ class ComputeMetrics:
         :return: điểm bleu (float)
         '''
         if len(hypothesis) == 0:
-            hypotheses = ['']
+            hypothesis = ['']
         # tiền xử lý
         refs_tokens = [self.preprocess(r) for r in references]
-        hyp_tokens = self.preprocess(hypotheses)
+        hyp_tokens = self.preprocess(hypothesis)
         if self.smoothing_fn:
             score = sentence_bleu(refs_tokens, hyp_tokens, weights, smoothing_function=self.smoothing_fn)
         else:
