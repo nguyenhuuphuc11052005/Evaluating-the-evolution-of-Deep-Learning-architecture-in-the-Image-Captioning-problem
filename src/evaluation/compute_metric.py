@@ -30,8 +30,8 @@ class ComputeMetrics:
 
         return tokens
     # BLEU
-    def corpus_bleu_score(self, references: List[List[List[str]]], 
-                          hypotheses: List[List[str]], weights: tuple)-> float:
+    def corpus_bleu_score(self, references: List[List[str]], 
+                          hypotheses: List[str], weights: tuple)-> float:
         '''
         Tính BLEU ở mức corpus
         :param references: List các list chuỗi tham chiếu
@@ -62,23 +62,6 @@ class ComputeMetrics:
         else:
             score = corpus_bleu(list_of_refs, hyps, weights=weights)
         return score
-    
-    def sentence_bleu_score(self, references: List[List[str]], hypothesis: List[str], weights: tuple) -> float:
-        '''
-        Tính BLEU cho một câu
-        :param references: List các câu tham chiếu 
-        :param candidate: câu dự đoán
-        :return: điểm bleu (float)
-        '''
-        if len(hypothesis) == 0:
-            hypothesis = ['']
-        # tiền xử lý
-        refs_tokens = [self.preprocess(r) for r in references]
-        hyp_tokens = self.preprocess(hypothesis)
-        if self.smoothing_fn:
-            score = sentence_bleu(refs_tokens, hyp_tokens, weights, smoothing_function=self.smoothing_fn)
-        else:
-            score = sentence_bleu(refs_tokens, hyp_tokens, weights)
     # ROUGE-L
     # CIDEr
 
@@ -90,45 +73,33 @@ class ComputeMetrics:
         results = {}
         # BLEU-1
         bleu1 = self.corpus_bleu_score(references, candidates, weights=(1.0, 0, 0, 0))
-        sent_bleu1 = [self.sentence_bleu_score(refs, cand, weights=(1.0, 0, 0, 0)) 
-                      for refs, cand in zip(references, candidates)]
         
         # BLEU-2
         bleu2 = self.corpus_bleu_score(references, candidates, weights=(0.5, 0.5, 0, 0))
-        sent_bleu2 = [self.sentence_bleu_score(refs, cand, weights=(0.5, 0.5, 0, 0)) 
-                      for refs, cand in zip(references, candidates)]
         
         # BLEU-3
         bleu3 = self.corpus_bleu_score(references, candidates, weights=(1/3, 1/3, 1/3, 0))
-        sent_bleu3 = [self.sentence_bleu_score(refs, cand, weights=(1/3, 1/3, 1/3, 0)) 
-                      for refs, cand in zip(references, candidates)]
         
         # BLEU-4
         bleu4 = self.corpus_bleu_score(references, candidates, weights=(0.25, 0.25, 0.25, 0.25))
-        sent_bleu4 = [self.sentence_bleu_score(refs, cand, weights=(0.25, 0.25, 0.25, 0.25)) 
-                      for refs, cand in zip(references, candidates)]
         
         
         results['BLEU'] = {
 
             'BLEU-1': {
                 'corpus': bleu1,
-                'sentence': sent_bleu1
             },
 
             'BLEU-2': {
                 'corpus': bleu2,
-                'sentence': sent_bleu2
             },
 
             'BLEU-3': {
                 'corpus': bleu3,
-                'sentence': sent_bleu3
             },
 
             'BLEU-4': {
                 'corpus': bleu4,
-                'sentence': sent_bleu4
             }
         }
         # ROUGE-L
