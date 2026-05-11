@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 import argparse
 import torchvision.transforms as transforms
-# import torch.distributed as dist
+import pickle
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -50,6 +50,16 @@ def main(config_path):
     vocab = build_vocab_from_json(train_ann_file, freq_threshold=5)
     vocab_size = len(vocab)
     
+    checkpoint_dir = os.path.join("experiments/checkpoints", config['experiment_name'])
+    os.makedirs(checkpoint_dir, exist_ok=True)
+    
+    vocab_save_path = os.path.join(checkpoint_dir, "vocab.pkl")
+    
+    # Chỉ cần lưu 1 lần (nếu chạy DataParallel/1 GPU)
+    with open(vocab_save_path, 'wb') as f:
+        pickle.dump(vocab, f)
+    print(f"-> Đã đóng gói và lưu bộ từ điển (Vocab) tại: {vocab_save_path}")
+
     train_transform = transforms.Compose([
         transforms.Resize((256, 256)),
         transforms.RandomCrop((224, 224)), # Cắt ngẫu nhiên
@@ -93,7 +103,7 @@ def main(config_path):
         num_heads = config['model']['num_heads']
         num_layers = config['model']['num_layers']
         
-        # Model này đã bọc sẵn cả Encoder và Decoder bên trong
+        # Model này đã bọc sẵn cả Encoder và Decoder bên trong  
         # Ta khởi tạo nó, sau đó tách nó ra thành biến encoder/decoder giả để đưa vào hàm train cũ
         full_model = ViTCaptioningModel(vocab_size, embed_size, num_heads, num_layers)
         
@@ -102,7 +112,7 @@ def main(config_path):
         # vì `full_model` (được gán cho biến `decoder`) sẽ ôm đồm làm toàn bộ việc forward pass.
         encoder = nn.Identity() 
         decoder = full_model
-    # 5. Huấn luyện
+    # 5. Huấn luyện 
     train_model(
         train_loader=train_loader, 
         val_loader=val_loader, 
