@@ -176,3 +176,49 @@ class M2TransformerDecoder(nn.Module):
         # --- PHẦN 4: DỰ ĐOÁN TỪ TIẾP THEO ---
         preds = self.fc_out(out) # Output: (batch_size, seq_len, vocab_size)
         return preds
+
+    def sample(self, features, vocab, max_len=20):
+        """
+        Hàm sinh từ autoregressive dành riêng cho Transformer.
+        """
+        device = features.device
+        
+        # 1. Khởi tạo mảng chứa câu với token <sos> đầu tiên
+        sos_token = vocab.stoi['<sos>'] # Nếu dùng vocab tự viết, có thể là vocab.word2idx['<sos>']
+        eos_token = vocab.stoi['<eos>']
+        
+        sampled_ids = [sos_token]
+        
+        for i in range(max_len):
+            # 2. Chuyển mảng hiện tại thành Tensor (Shape: 1, current_seq_len)
+            tgt = torch.tensor([sampled_ids], dtype=torch.long).to(device)
+            
+            # 3. Nhúng từ vựng và cộng vị trí
+            tgt_embed = self.embed(tgt) # Hoặc self.embedding(tgt)
+            if hasattr(self, 'pos_encoder'): 
+                tgt_embed = self.pos_encoder(tgt_embed)
+                
+            # 4. Tạo mặt nạ che tương lai (Subsequent Mask)
+            sz = tgt.size(1)
+            mask = (torch.triu(torch.ones(sz, sz)) == 1).transpose(0, 1)
+            tgt_mask = mask.float().masked_fill(mask == 0, float('-inf')).masked_fill(mask == 1, float(0.0)).to(device)
+            
+            # 5. Đưa qua Transformer Decoder
+            # features đóng vai trò là 'memory' từ Encoder
+            output = self.decoder(tgt=tgt_embed, memory=features, tgt_mask=tgt_mask)
+            
+            # 6. Dự đoán từ TIẾP THEO (Chỉ lấy kết quả ở vị trí token cuối cùng)
+            preds = self.linear(output) # Hoặc self.fc_out(output)
+            next_word_logits = preds[:, -1, :] # Shape: (1, vocab_size)
+            
+            _, predicted_id = next_word_logits.max(1)
+            predicted_id = predicted_id.item()
+            
+            # 7. Nếu gặp <eos> thì ngắt mạch ngay tại Decoder
+            if predicted_id == eos_token:
+                break
+                
+            sampled_ids.append(predicted_id)
+            
+        # Trả về kết quả (Cắt bỏ token <sos> ở đầu mảng để câu in ra được tự nhiên)
+        return sampled_ids[1:]
