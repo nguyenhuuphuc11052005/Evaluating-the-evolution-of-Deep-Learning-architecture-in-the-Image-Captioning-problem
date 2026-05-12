@@ -3,3 +3,4 @@ rouge_score
 tensorboard
 pyyaml
 tqdm
+pycocoevalcap
