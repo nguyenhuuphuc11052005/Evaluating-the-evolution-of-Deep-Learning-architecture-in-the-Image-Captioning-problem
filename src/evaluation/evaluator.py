@@ -92,20 +92,20 @@ class Evaluator:
         return caption
      
     def generate_predictions(self)->List[str]:
-          predictions = []
-          with torch.no_grad():
-              for images, captions, *others in tqdm(self.test_loader, desc='Generating Captions'):
-                  images = images.to(self.device)
+        predictions = []
+        with torch.no_grad():
+            for images, captions, *others in tqdm(self.test_loader, desc='Generating Captions'):
+                images = images.to(self.device)
                   
-                  # Đảm bảo images có 4 chiều [Batch, C, H, W]
-                  if images.dim() == 3:
-                      images = images.unsqueeze(0)
+                # Đảm bảo images có 4 chiều [Batch, C, H, W]
+                if images.dim() == 3:
+                    images = images.unsqueeze(0)
 
-                  features = self.encoder(images)
-                  token_ids = self.search.generate(features)
-                  caption = self.decode_caption(token_ids)
-                  predictions.append(caption)
-          return predictions
+                features = self.encoder(images)
+                token_ids = self.search.generate(features)
+                caption = self.decode_caption(token_ids)
+                predictions.append(caption)
+        return predictions
 
     def evaluate(self) -> Dict[str, Any]:
         references = [] # lưu tham chiếu
