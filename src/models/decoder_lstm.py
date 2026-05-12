@@ -42,20 +42,18 @@ class LSTMDecoder(nn.Module):
         
         return outputs
     
-    def sample(self, features, states=None, max_len=20):
-        # Hàm này dùng để sinh câu (inference) khi test thực tế (không có caption thật mồi vào)
+    def sample(self, features, max_len=20):
         sampled_ids = []
-        inputs = features.unsqueeze(1) # (batch_size, 1, embed_size)
+        inputs = features.unsqueeze(1)
+        states = None # Trạng thái ẩn ban đầu
         
         for i in range(max_len):
-            hiddens, states = self.lstm(inputs, states)       # hiddens: (batch_size, 1, hidden_size)
-            outputs = self.linear(hiddens.squeeze(1))         # outputs: (batch_size, vocab_size)
-            
-            # Chọn ra từ có xác suất cao nhất
-            _, predicted = outputs.max(1)                     # predicted: (batch_size)
+            hiddens, states = self.lstm(inputs, states)
+            outputs = self.linear(hiddens.squeeze(1))
+             
+            _, predicted = outputs.max(1)
             sampled_ids.append(predicted.item())
             
-            # Đưa từ vừa dự đoán làm input cho bước tiếp theo
-            inputs = self.embed(predicted).unsqueeze(1)       # inputs: (batch_size, 1, embed_size)
+            inputs = self.embed(predicted).unsqueeze(1)
             
         return sampled_ids
