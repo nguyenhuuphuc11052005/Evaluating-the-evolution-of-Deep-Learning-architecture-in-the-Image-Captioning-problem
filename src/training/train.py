@@ -1,4 +1,5 @@
 import os
+# from pyexpat import model
 import torch.cuda.amp as amp # Thêm thư viện
 import torch.nn as nn
 from logging import config
@@ -21,7 +22,7 @@ def train_model(train_loader, val_loader, encoder, decoder, vocab,config,resume_
     encoder, decoder = encoder.to(device), decoder.to(device)
     
     scaler = amp.GradScaler() # Khởi tạo GradScaler cho Mixed Precision Training
-    learning_rate = config['training']['learning_rate']
+    # learning_rate = config['training']['learning_rate']
     num_epochs = config['training']['num_epochs']
     exp_name = config['experiment_name']
 
@@ -36,9 +37,42 @@ def train_model(train_loader, val_loader, encoder, decoder, vocab,config,resume_
     model_save_path = os.path.join(checkpoint_dir, "best_model.pth")
     # 2. Khởi tạo Loss, Optimizer và Callbacks
     criterion = get_criterion(vocab)
-    optimizer = optim.Adam(decoder.parameters(), lr=learning_rate) # Tối ưu hóa Adam 
+    # optimizer = optim.Adam(decoder.parameters(), lr=learning_rate) # Tối ưu hóa Adam 
     early_stopping = EarlyStopping(patience=3, save_path=model_save_path)
-    
+    # Learning rates
+    encoder_lr = config['training']['encoder_lr']
+    decoder_lr = config['training']['decoder_lr']
+
+    # Các layer encoder được fine-tune
+    params_encoder_layers = (
+        list(encoder.resnet[6].parameters()) +
+        list(encoder.resnet[7].parameters())
+    )
+
+    params_encoder_top = (
+        list(encoder.linear.parameters()) +
+        list(encoder.bn.parameters())
+    )
+
+    params_decoder = list(decoder.parameters())
+
+
+    # Differential Learning Rates
+    optimizer = optim.Adam([
+        {
+            'params': params_encoder_layers,
+            'lr': encoder_lr
+        },
+        {
+            'params': params_encoder_top,
+            'lr': decoder_lr
+        },
+        {
+            'params': params_decoder,
+            'lr': decoder_lr
+        }
+    ])
+
     # 3. Quản lý thực nghiệm với TensorBoard
     # Ghi log biểu đồ tự động 
     logger, log_dir = setup_logger(exp_name)
