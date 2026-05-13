@@ -47,18 +47,21 @@ def main(config_path):
     num_epochs = config['training']['num_epochs']
     
     # 3. Chuẩn bị Dữ liệu
-    vocab = build_vocab_from_json(train_ann_file, freq_threshold=5)
+    # vocab = build_vocab_from_json(train_ann_file, freq_threshold=5)
+    path_vocab = config['training']['path_vocab']
+    with open(path_vocab, "rb") as f:
+        vocab = pickle.load(f)
     vocab_size = len(vocab)
     
-    checkpoint_dir = os.path.join("experiments/checkpoints", config['experiment_name'])
-    os.makedirs(checkpoint_dir, exist_ok=True)
+    # checkpoint_dir = os.path.join("experiments/checkpoints", config['experiment_name'])
+    # os.makedirs(checkpoint_dir, exist_ok=True)
     
-    vocab_save_path = os.path.join(checkpoint_dir, "vocab.pkl")
+    # vocab_save_path = os.path.join(checkpoint_dir, "vocab.pkl")
     
     # Chỉ cần lưu 1 lần (nếu chạy DataParallel/1 GPU)
-    with open(vocab_save_path, 'wb') as f:
-        pickle.dump(vocab, f)
-    print(f"-> Đã đóng gói và lưu bộ từ điển (Vocab) tại: {vocab_save_path}")
+    # with open(vocab_save_path, 'wb') as f:
+    #     pickle.dump(vocab, f)
+    # print(f"-> Đã đóng gói và lưu bộ từ điển (Vocab) tại: {vocab_save_path}")
 
     train_transform = transforms.Compose([
         transforms.Resize((256, 256)),
