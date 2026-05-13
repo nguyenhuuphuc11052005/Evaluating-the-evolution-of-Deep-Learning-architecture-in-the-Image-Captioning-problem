@@ -3,33 +3,40 @@ import torch.nn as nn
 import torchvision.models as models
 
 class ResNet50Encoder(nn.Module):
-    def __init__(self, embed_size):
+    def __init__(self, embed_size, unfreeze_blocks=2):
         super(ResNet50Encoder, self).__init__()
-        # Tải mô hình ResNet50 đã được pre-trained
+        # Tải mô hình ResNet50 pre-trained
         resnet = models.resnet50(weights=models.ResNet50_Weights.DEFAULT)
         
-        # Cắt bỏ lớp Linear cuối cùng (fc) của ResNet
+        # Cắt bỏ lớp Linear cuối cùng (fc)
         modules = list(resnet.children())[:-1]
         self.resnet = nn.Sequential(*modules)
         
-        # Thêm lớp Linear mới để ép kiểu vector 2048 chiều về embed_size
+        # Thêm lớp Linear và BatchNorm để ép kiểu về embed_size
         self.linear = nn.Linear(resnet.fc.in_features, embed_size)
-        
-        # Thêm BatchNorm để ổn định quá trình huấn luyện
         self.bn = nn.BatchNorm1d(embed_size, momentum=0.01)
         
-        # ĐÓNG BĂNG (Freeze) trọng số của ResNet50 để tiết kiệm GPU/RAM
+        # --- CHIẾN LƯỢC UNFREEZE ---
+        # Mặc định đóng băng toàn bộ trước
         for param in self.resnet.parameters():
             param.requires_grad = False
+            
+        # Unfreeze các block cuối (ResNet50 có các lớp: layer1, layer2, layer3, layer4)
+        # Chúng ta thường unfreeze layer4 và layer3 để mô hình học lại các vật thể cụ thể
+        if unfreeze_blocks >= 1:
+            # Mở khóa layer4 (Block cuối cùng)
+            for param in self.resnet[7].parameters(): # layer4 là phần tử thứ 7 trong Sequential
+                param.requires_grad = True
+        if unfreeze_blocks >= 2:
+            # Mở khóa layer3
+            for param in self.resnet[6].parameters(): # layer3 là phần tử thứ 6
+                param.requires_grad = True
 
     def forward(self, images):
-        # images shape: (batch_size, 3, 224, 224)
-        features = self.resnet(images)          # (batch_size, 2048, 1, 1)
-        features = features.view(features.size(0), -1) # (batch_size, 2048)
-        
-        features = self.linear(features)        # (batch_size, embed_size)
+        features = self.resnet(images)          
+        features = features.view(features.size(0), -1) 
+        features = self.linear(features)        
         features = self.bn(features)
-        
         return features
     
 
