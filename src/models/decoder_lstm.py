@@ -3,57 +3,66 @@ import torch.nn as nn
 
 class LSTMDecoder(nn.Module):
     def __init__(self, embed_size, hidden_size, vocab_size, num_layers=1):
+        """Set the hyper-parameters and build the layers."""
         super(LSTMDecoder, self).__init__()
-        
-        # Lớp Embedding: Chuyển index của từ thành vector ngữ nghĩa
         self.embed = nn.Embedding(vocab_size, embed_size)
-        
-        # Mạng LSTM cốt lõi
         self.lstm = nn.LSTM(embed_size, hidden_size, num_layers, batch_first=True)
-        
-        # Lớp Linear cuối cùng để dự đoán từ vựng (ánh xạ về vocab_size)
         self.linear = nn.Linear(hidden_size, vocab_size)
-        
-        # Dropout để chống Overfitting
-        self.dropout = nn.Dropout(0.5)
 
     def forward(self, features, captions):
-        # features shape: (batch_size, embed_size)
-        # captions shape: (batch_size, max_seq_length)
-        
-        # BỎ ĐI TOKEN CUỐI CÙNG CỦA CAPTION
-        # Vì nếu câu là <sos> con chó đang chạy <eos>
-        # Input đưa vào sẽ là: <sos> con chó đang chạy (để dự đoán từ tiếp theo)
-        embeddings = self.dropout(self.embed(captions[:, :-1])) # (batch_size, max_seq_length - 1, embed_size)
-        
-        # NỐI VECTOR ẢNH VÀO ĐẦU CHUỖI VĂN BẢN
-        # Thêm 1 chiều time-step cho vector ảnh: (batch_size, 1, embed_size)
-        features = features.unsqueeze(1)
-        
-        # Chuỗi input hoàn chỉnh cho LSTM: [Ảnh, Từ_1, Từ_2, ...]
-        embeddings = torch.cat((features, embeddings), dim=1) 
-        
-        # Chạy qua mạng LSTM
-        # hiddens shape: (batch_size, max_seq_length, hidden_size)
-        hiddens, _ = self.lstm(embeddings)
-        
-        # Dự đoán xác suất cho từ tiếp theo
-        outputs = self.linear(hiddens) # (batch_size, max_seq_length, vocab_size)
-        
+        """Decode image feature vectors and generates captions."""
+        captions = captions[:,:-1]
+        embeddings = self.embed(captions)
+        inputs = torch.cat((features.unsqueeze(1), embeddings), 1)
+        hiddens, _ = self.lstm(inputs)
+        outputs = self.linear(hiddens)
         return outputs
-    
-    def sample(self, features, max_len=20):
+
+    def sample(self, inputs, states=None, max_len=20):
+        """Accept a pre-processed image tensor (inputs) and return predicted 
+        sentence (list of tensor ids of length max_len). This is the greedy
+        search approach.
+        """
         sampled_ids = []
-        inputs = features.unsqueeze(1)
-        states = None # Trạng thái ẩn ban đầu
-        
         for i in range(max_len):
             hiddens, states = self.lstm(inputs, states)
             outputs = self.linear(hiddens.squeeze(1))
-             
-            _, predicted = outputs.max(1)
+            # Get the index (in the vocabulary) of the most likely integer that
+            # represents a word
+            predicted = outputs.argmax(1)
             sampled_ids.append(predicted.item())
-            
-            inputs = self.embed(predicted).unsqueeze(1)
-            
+            inputs = self.embed(predicted)
+            inputs = inputs.unsqueeze(1)
         return sampled_ids
+
+    def sample_beam_search(self, inputs, states=None, max_len=20, beam_width=5):
+        """Accept a pre-processed image tensor and return the top predicted 
+        sentences. This is the beam search approach.
+        """
+        # Top word idx sequences and their corresponding inputs and states
+        idx_sequences = [[[], 0.0, inputs, states]]
+        for _ in range(max_len):
+            # Store all the potential candidates at each step
+            all_candidates = []
+            # Predict the next word idx for each of the top sequences
+            for idx_seq in idx_sequences:
+                hiddens, states = self.lstm(idx_seq[2], idx_seq[3])
+                outputs = self.linear(hiddens.squeeze(1))
+                # Transform outputs to log probabilities to avoid floating-point 
+                # underflow caused by multiplying very small probabilities
+                log_probs = F.log_softmax(outputs, -1)
+                top_log_probs, top_idx = log_probs.topk(beam_width, 1)
+                top_idx = top_idx.squeeze(0)
+                # create a new set of top sentences for next round
+                for i in range(beam_width):
+                    next_idx_seq, log_prob = idx_seq[0][:], idx_seq[1]
+                    next_idx_seq.append(top_idx[i].item())
+                    log_prob += top_log_probs[0][i].item()
+                    # Indexing 1-dimensional top_idx gives 0-dimensional tensors.
+                    # We have to expand dimensions before embedding them
+                    inputs = self.embed(top_idx[i].unsqueeze(0)).unsqueeze(0)
+                    all_candidates.append([next_idx_seq, log_prob, inputs, states])
+            # Keep only the top sequences according to their total log probability
+            ordered = sorted(all_candidates, key=lambda x: x[1], reverse=True)
+            idx_sequences = ordered[:beam_width]
+        return [idx_seq[0] for idx_seq in idx_sequences]
