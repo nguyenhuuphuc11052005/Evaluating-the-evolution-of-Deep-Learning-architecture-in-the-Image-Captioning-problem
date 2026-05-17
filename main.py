@@ -18,15 +18,15 @@ from src.training.train import train_model
 from src.utils import set_seed, load_config
 from src.models.vit_transformer import ViTCaptioningModel
 
-def build_vocab_from_json(json_path, freq_threshold=5):
-    print(f"Đang phân tích ngôn ngữ từ: {json_path}...")
-    with open(json_path, 'r') as f:
-        data = json.load(f)
+# def build_vocab_from_json(json_path, freq_threshold=5):
+#     print(f"Đang phân tích ngôn ngữ từ: {json_path}...")
+#     with open(json_path, 'r') as f:
+#         data = json.load(f)
         
-    captions = [ann['caption'] for ann in data['annotations']]
-    vocab = Vocabulary(freq_threshold)
-    vocab.build_vocab(captions)
-    return vocab
+#     captions = [ann['caption'] for ann in data['annotations']]
+#     vocab = Vocabulary(freq_threshold)
+#     vocab.build_vocab(captions)
+#     return vocab
 
 def main(config_path):
     # dist.init_process_group(backend="nccl")
@@ -47,22 +47,19 @@ def main(config_path):
     learning_rate = config['training']['learning_rate']
     num_epochs = config['training']['num_epochs']
     path_cap =  config['data']['path_cap']
-
-    # 3. Chuẩn bị Dữ liệu
-    vocab = build_vocab_from_json(path_cap, freq_threshold=5)
-    # with open(path_vocab, "rb") as f:
-    #     vocab = pickle.load(f)
+    path_vocab = config['training']['path_vocab']
+    
+    print("-> Khởi tạo và xử lý Vocabulary...")
+    # GỌI TRỰC TIẾP CLASS VOCABULARY. 
+    # Class này sẽ tự động lo việc build từ JSON hoặc load từ file Pickle.
+    vocab = Vocabulary(
+        vocab_threshold=5,
+        vocab_file=path_vocab,
+        annotations_file=path_cap,
+        vocab_from_file=True # True: Sẽ load file vocab.pkl nếu đã tồn tại, tránh build lại mất thời gian
+    )
     vocab_size = len(vocab)
-    
-    checkpoint_dir = os.path.join("experiments/checkpoints", config['experiment_name'])
-    os.makedirs(checkpoint_dir, exist_ok=True)
-    
-    vocab_save_path = os.path.join(checkpoint_dir, "vocab.pkl")
-    
-
-    with open(vocab_save_path, 'wb') as f:
-        pickle.dump(vocab, f)
-    print(f"-> Đã đóng gói và lưu bộ từ điển (Vocab) tại: {vocab_save_path}")
+    print(f"-> Kích thước tập từ vựng: {vocab_size} từ")
 
     train_transform = transforms.Compose([
         transforms.Resize((256, 256)),
