@@ -35,6 +35,7 @@ class Vocabulary(object):
         self.annotations_file = annotations_file
         self.vocab_from_file = vocab_from_file
         self.get_vocab()
+        self.pad_word = pad_word
 
     def get_vocab(self):
         """Load the vocabulary from file or build it from scratch."""
