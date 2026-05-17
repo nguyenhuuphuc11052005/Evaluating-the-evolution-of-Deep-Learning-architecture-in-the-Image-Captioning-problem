@@ -52,11 +52,14 @@ def main(config_path):
     print("-> Khởi tạo và xử lý Vocabulary...")
     # GỌI TRỰC TIẾP CLASS VOCABULARY. 
     # Class này sẽ tự động lo việc build từ JSON hoặc load từ file Pickle.
+    os.path.join(checkpoint_dir, "vocab.pkl")
+    
+    print("-> Khởi tạo và xử lý Vocabulary...")
     vocab = Vocabulary(
         vocab_threshold=5,
-        vocab_file=path_vocab,
-        annotations_file=path_cap,
-        vocab_from_file=False # True: Sẽ load file vocab.pkl nếu đã tồn tại, tránh build lại mất thời gian
+        vocab_file=vocab_save_path, # Truyền đường dẫn mới này vào
+        annotations_file=train_ann_file,
+        vocab_from_file=False 
     )
     vocab_size = len(vocab)
     print(f"-> Kích thước tập từ vựng: {vocab_size} từ")
