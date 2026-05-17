@@ -58,7 +58,7 @@ def main(config_path):
     vocab = Vocabulary(
         vocab_threshold=5,
         vocab_file=vocab_save_path, # Truyền đường dẫn mới này vào
-        annotations_file=train_ann_file,
+        annotations_file=path_cap,
         vocab_from_file=False 
     )
     vocab_size = len(vocab)
