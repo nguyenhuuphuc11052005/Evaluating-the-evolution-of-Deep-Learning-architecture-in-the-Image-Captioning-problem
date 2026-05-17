@@ -12,6 +12,7 @@ class Vocabulary(object):
         start_word="<start>",
         end_word="<end>",
         unk_word="<unk>",
+        pad_word="<pad>",
         annotations_file="/kaggle/input/datasets/phuoc11/annotation-train/captions_train2014.json",
         vocab_from_file=False):
         """Initialize the vocabulary.
@@ -55,6 +56,7 @@ class Vocabulary(object):
         self.add_word(self.start_word)
         self.add_word(self.end_word)
         self.add_word(self.unk_word)
+        self.add_word(self.pad_word)
         self.add_captions()
 
     def init_vocab(self):
