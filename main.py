@@ -25,7 +25,7 @@ def build_vocab_from_json(json_path, freq_threshold=5):
         
     captions = [ann['caption'] for ann in data['annotations']]
     vocab = Vocabulary(freq_threshold)
-    vocab.build_vocabulary(captions)
+    vocab.build_vocab(captions)
     return vocab
 
 def main(config_path):
