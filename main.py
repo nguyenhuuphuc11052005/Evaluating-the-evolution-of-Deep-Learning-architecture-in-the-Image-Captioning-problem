@@ -8,7 +8,7 @@ import pickle
 import warnings
 warnings.filterwarnings("ignore")
 
-from src.data.build_vocab import Vocabulary
+# from src.data.build_vocab import Vocabulary
 from src.data.dataset import get_loader
 from src.models.encoder import ResNet50Encoder,ResNet50SpatialEncoder
 from src.models.decoder_lstm import LSTMDecoder
