@@ -43,7 +43,7 @@ def main(config_path):
     val_ann_file = config['data']['val_ann_file']
     
     batch_size = config['training']['batch_size']
-    # learning_rate = config['training']['learning_rate']
+    learning_rate = config['training']['learning_rate']
     num_epochs = config['training']['num_epochs']
     
     # 3. Chuẩn bị Dữ liệu
@@ -87,8 +87,6 @@ def main(config_path):
     
     if config['model']['type'] == 'lstm':
         print("-> Khởi tạo LSTM Decoder...")
-        encoder_lr = config['training']['encoder_lr']
-        decoder_lr = config['training']['decoder_lr']
         hidden_size = config['model']['hidden_size']
         num_layers = config['model']['num_layers']
         decoder = LSTMDecoder(embed_size, hidden_size, vocab_size, num_layers)
