@@ -56,7 +56,7 @@ def main(config_path):
         vocab_threshold=5,
         vocab_file=path_vocab,
         annotations_file=path_cap,
-        vocab_from_file=True # True: Sẽ load file vocab.pkl nếu đã tồn tại, tránh build lại mất thời gian
+        vocab_from_file=False # True: Sẽ load file vocab.pkl nếu đã tồn tại, tránh build lại mất thời gian
     )
     vocab_size = len(vocab)
     print(f"-> Kích thước tập từ vựng: {vocab_size} từ")
