@@ -112,3 +112,109 @@ class ViTCaptioningModel(nn.Module):
         preds = self.fc_out(out) # Shape: (batch_size, seq_len, vocab_size)
         
         return preds
+
+    def sample(self, images, start_idx, end_idx=None, max_len=20):
+        """
+        Inference bằng Greedy Search cho Transformer.
+        """
+        self.eval() # Chuyển mô hình sang chế độ đánh giá
+        with torch.no_grad():
+            device = images.device
+            batch_size = images.size(0)
+            
+            # 1. Trích xuất đặc trưng ảnh (chỉ chạy 1 lần duy nhất)
+            # memory shape: (batch_size, 197, embed_size)
+            memory = self.encoder(images) 
+
+            # 2. Khởi tạo mảng chứa câu, bắt đầu bằng token <start>
+            # tgt shape: (batch_size, 1)
+            tgt = torch.full((batch_size, 1), start_idx, dtype=torch.long, device=device)
+
+            # 3. Vòng lặp tự hồi quy (Autoregressive)
+            for step in range(max_len):
+                # Nhúng chuỗi hiện tại và cộng vị trí
+                tgt_emb = self.embedding(tgt)
+                tgt_emb = self.pos_encoder(tgt_emb)
+
+                # Tạo mặt nạ che tương lai cho độ dài chuỗi hiện tại
+                tgt_mask = self.generate_square_subsequent_mask(tgt.size(1)).to(device)
+
+                # Đưa vào Transformer Decoder
+                out = self.decoder(tgt=tgt_emb, memory=memory, tgt_mask=tgt_mask)
+
+                # Lấy dự đoán cho TỪ CUỐI CÙNG trong chuỗi vừa tạo
+                preds = self.fc_out(out[:, -1, :]) # Shape: (batch_size, vocab_size)
+                
+                # Greedy: Chọn từ có xác suất cao nhất
+                next_word = preds.argmax(dim=1, keepdim=True) # Shape: (batch_size, 1)
+
+                # Ghép từ mới dự đoán được vào chuỗi để làm input cho bước tiếp theo
+                tgt = torch.cat([tgt, next_word], dim=1)
+                
+                # (Tùy chọn) Dừng sớm nếu mô hình sinh ra token <end> (khi test với batch_size=1)
+                if end_idx is not None and batch_size == 1 and next_word.item() == end_idx:
+                    break
+
+            # Lấy list các IDs sinh ra (bỏ đi token <start> ở đầu)
+            sampled_ids = tgt[0, 1:].tolist()
+            return sampled_ids
+
+    def sample_beam_search(self, images, start_idx, end_idx, max_len=20, beam_width=5):
+        """
+        Inference bằng Beam Search cho Transformer.
+        (Được tối ưu để chạy cho 1 bức ảnh tại một thời điểm - batch_size = 1)
+        """
+        self.eval()
+        with torch.no_grad():
+            device = images.device
+            
+            # 1. Trích xuất đặc trưng ảnh (chỉ 1 lần)
+            memory = self.encoder(images) # Shape: (1, 197, embed_size)
+            
+            # Khởi tạo Beam: danh sách các tuple (chuỗi_ids, tổng_log_prob)
+            # Khởi đầu với chuỗi chỉ có <start> và điểm số = 0
+            k_beams = [([start_idx], 0.0)]
+            
+            for step in range(max_len):
+                new_beams = []
+                for seq, score in k_beams:
+                    # Nếu câu trong nhánh này đã gặp token <end>, giữ nguyên nó
+                    if seq[-1] == end_idx:
+                        new_beams.append((seq, score))
+                        continue
+                        
+                    # Chuẩn bị input cho Decoder
+                    tgt_tensor = torch.tensor(seq, dtype=torch.long, device=device).unsqueeze(0) # (1, seq_len)
+                    
+                    tgt_emb = self.embedding(tgt_tensor)
+                    tgt_emb = self.pos_encoder(tgt_emb)
+                    tgt_mask = self.generate_square_subsequent_mask(tgt_tensor.size(1)).to(device)
+                    
+                    # Chạy qua Decoder
+                    out = self.decoder(tgt=tgt_emb, memory=memory, tgt_mask=tgt_mask)
+                    preds = self.fc_out(out[:, -1, :]) # (1, vocab_size)
+                    
+                    # Tính log_softmax để tránh tràn số (underflow) khi cộng dồn xác suất
+                    log_probs = torch.nn.functional.log_softmax(preds, dim=-1).squeeze(0) # (vocab_size)
+                    
+                    # Lấy Top K từ tốt nhất cho nhánh hiện tại
+                    topk_log_probs, topk_idx = log_probs.topk(beam_width)
+                    
+                    for i in range(beam_width):
+                        next_word = topk_idx[i].item()
+                        next_score = score + topk_log_probs[i].item()
+                        new_beams.append((seq + [next_word], next_score))
+                
+                # Sắp xếp lại toàn bộ các nhánh mới sinh ra (dựa vào tổng log_prob)
+                # và chỉ giữ lại Top K (beam_width) nhánh xuất sắc nhất
+                k_beams = sorted(new_beams, key=lambda x: x[1], reverse=True)[:beam_width]
+                
+                # Dừng vòng lặp sớm nếu tất cả Top K nhánh đều đã kết thúc bằng <end>
+                if all(seq[-1] == end_idx for seq, _ in k_beams):
+                    break
+
+            # Lấy chuỗi ID của nhánh có điểm cao nhất (nhánh đứng đầu danh sách)
+            best_seq = k_beams[0][0]
+            
+            # Bỏ đi token <start> ở đầu
+            return best_seq[1:]
