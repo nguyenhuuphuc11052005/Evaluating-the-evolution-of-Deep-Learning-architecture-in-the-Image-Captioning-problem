@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 class LSTMDecoder(nn.Module):
     def __init__(self, embed_size, hidden_size, vocab_size, num_layers=1):
