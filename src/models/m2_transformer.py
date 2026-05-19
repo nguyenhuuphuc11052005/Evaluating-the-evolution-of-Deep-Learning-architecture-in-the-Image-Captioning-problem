@@ -177,48 +177,126 @@ class M2TransformerDecoder(nn.Module):
         preds = self.fc_out(out) # Output: (batch_size, seq_len, vocab_size)
         return preds
 
-    def sample(self, features, vocab, max_len=20):
+    def sample(self, features, start_idx, end_idx, max_len=20):
         """
-        Hàm sinh từ autoregressive dành riêng cho Transformer.
+        Inference bằng Greedy Search dành riêng cho Meshed-Memory Transformer.
+        - features: (1, 49, embed_size) - Lưới đặc trưng ảnh
         """
         device = features.device
         
-        # 1. Khởi tạo mảng chứa câu với token <sos> đầu tiên
-        sos_token = vocab.stoi['<sos>'] # Nếu dùng vocab tự viết, có thể là vocab.word2idx['<sos>']
-        eos_token = vocab.stoi['<eos>']
+        # --- PHẦN 1: XỬ LÝ ẢNH QUA M2 ENCODER (Chỉ chạy 1 lần) ---
+        encoder_outputs = []
+        x = features
+        for enc in self.encoders:
+            x = enc(x)
+            encoder_outputs.append(x) # Lưu lại list các output để Meshed Decoder dùng
+            
+        # --- PHẦN 2: KHỞI TẠO CHUỖI TỪ VỰNG ---
+        # Bắt đầu với token <start>
+        tgt = torch.full((1, 1), start_idx, dtype=torch.long, device=device)
         
-        sampled_ids = [sos_token]
-        
+        # --- PHẦN 3: VÒNG LẶP AUTOREGRESSIVE ---
         for i in range(max_len):
-            # 2. Chuyển mảng hiện tại thành Tensor (Shape: 1, current_seq_len)
-            tgt = torch.tensor([sampled_ids], dtype=torch.long).to(device)
+            seq_len = tgt.size(1)
             
-            # 3. Nhúng từ vựng và cộng vị trí
-            tgt_embed = self.embed(tgt) # Hoặc self.embedding(tgt)
-            if hasattr(self, 'pos_encoder'): 
-                tgt_embed = self.pos_encoder(tgt_embed)
+            # Xử lý Vị trí và Nhúng từ vựng hiện tại
+            positions = torch.arange(0, seq_len).unsqueeze(0).to(device)
+            word_embed = self.embed(tgt)
+            pos_embed = self.pos_embed(positions)
+            out = word_embed + pos_embed
+            
+            # Tạo mặt nạ tam giác
+            tgt_mask = self.generate_mask(seq_len).to(device)
+            
+            # Đưa qua từng lớp Meshed Decoder
+            for dec in self.decoders:
+                # Đưa cả list encoder_outputs vào
+                out = dec(out, encoder_outputs, tgt_mask)
                 
-            # 4. Tạo mặt nạ che tương lai (Subsequent Mask)
-            sz = tgt.size(1)
-            mask = (torch.triu(torch.ones(sz, sz)) == 1).transpose(0, 1)
-            tgt_mask = mask.float().masked_fill(mask == 0, float('-inf')).masked_fill(mask == 1, float(0.0)).to(device)
+            # Lấy vector của TỪ CUỐI CÙNG trong chuỗi
+            preds = self.fc_out(out[:, -1, :]) # Shape: (1, vocab_size)
             
-            # 5. Đưa qua Transformer Decoder
-            # features đóng vai trò là 'memory' từ Encoder
-            output = self.decoder(tgt=tgt_embed, memory=features, tgt_mask=tgt_mask)
+            # Chọn từ có xác suất cao nhất
+            next_word = preds.argmax(dim=1, keepdim=True)
             
-            # 6. Dự đoán từ TIẾP THEO (Chỉ lấy kết quả ở vị trí token cuối cùng)
-            preds = self.linear(output) # Hoặc self.fc_out(output)
-            next_word_logits = preds[:, -1, :] # Shape: (1, vocab_size)
+            # Nối từ mới vào chuỗi
+            tgt = torch.cat([tgt, next_word], dim=1)
             
-            _, predicted_id = next_word_logits.max(1)
-            predicted_id = predicted_id.item()
-            
-            # 7. Nếu gặp <eos> thì ngắt mạch ngay tại Decoder
-            if predicted_id == eos_token:
+            # Dừng nếu gặp token <end>
+            if next_word.item() == end_idx:
                 break
                 
-            sampled_ids.append(predicted_id)
+        # Trả về list ID (cắt bỏ token <start> ở vị trí số 0)
+        return tgt[0, 1:].tolist()
+
+    def sample_beam_search(self, features, start_idx, end_idx, max_len=20, beam_width=5):
+        """
+        Inference bằng Beam Search dành riêng cho Meshed-Memory Transformer.
+        """
+        device = features.device
+        
+        # --- PHẦN 1: XỬ LÝ ẢNH QUA M2 ENCODER (Chỉ chạy 1 lần) ---
+        encoder_outputs = []
+        x = features
+        for enc in self.encoders:
+            x = enc(x)
+            encoder_outputs.append(x)
             
-        # Trả về kết quả (Cắt bỏ token <sos> ở đầu mảng để câu in ra được tự nhiên)
-        return sampled_ids[1:]
+        # --- PHẦN 2: KHỞI TẠO BEAM ---
+        # Lưu các nhánh tiềm năng: list các tuple (chuỗi_ids, tổng_log_prob)
+        k_beams = [([start_idx], 0.0)]
+        
+        # --- PHẦN 3: VÒNG LẶP TÌM KIẾM ---
+        for step in range(max_len):
+            new_beams = []
+            
+            for seq, score in k_beams:
+                # Nếu nhánh này đã kết thúc, giữ nguyên nó lại
+                if seq[-1] == end_idx:
+                    new_beams.append((seq, score))
+                    continue
+                    
+                # Chuyển chuỗi thành Tensor
+                tgt = torch.tensor([seq], dtype=torch.long, device=device)
+                seq_len = tgt.size(1)
+                
+                # Embedding + Position
+                positions = torch.arange(0, seq_len).unsqueeze(0).to(device)
+                word_embed = self.embed(tgt)
+                pos_embed = self.pos_embed(positions)
+                out = word_embed + pos_embed
+                
+                # Tạo Mask
+                tgt_mask = self.generate_mask(seq_len).to(device)
+                
+                # Chạy qua Decoder
+                for dec in self.decoders:
+                    out = dec(out, encoder_outputs, tgt_mask)
+                    
+                # Dự đoán từ cuối cùng
+                preds = self.fc_out(out[:, -1, :])
+                
+                # Tính Log Softmax (Cực kỳ quan trọng cho Beam Search)
+                log_probs = torch.nn.functional.log_softmax(preds, dim=-1).squeeze(0)
+                
+                # Lấy Top K từ tốt nhất cho nhánh này
+                topk_log_probs, topk_idx = log_probs.topk(beam_width)
+                
+                # Tạo ra K nhánh mới từ nhánh hiện tại
+                for i in range(beam_width):
+                    next_word = topk_idx[i].item()
+                    next_score = score + topk_log_probs[i].item()
+                    new_beams.append((seq + [next_word], next_score))
+                    
+            # Sắp xếp tất cả các nhánh mới sinh ra theo điểm số giảm dần
+            k_beams = sorted(new_beams, key=lambda x: x[1], reverse=True)[:beam_width]
+            
+            # Nếu tất cả các nhánh tốt nhất đều đã chạm <end>, ta dừng vòng lặp sớm
+            if all(seq[-1] == end_idx for seq, _ in k_beams):
+                break
+                
+        # Lấy chuỗi của nhánh đứng đầu bảng
+        best_seq = k_beams[0][0]
+        
+        # Trả về list ID (cắt bỏ token <start>)
+        return best_seq[1:]
