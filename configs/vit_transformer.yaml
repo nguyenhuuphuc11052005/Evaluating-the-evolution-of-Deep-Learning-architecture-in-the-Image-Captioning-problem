@@ -1,0 +1,18 @@
+experiment_name: "vit_transformer_v1"
+
+model:
+  type: "vit_transformer"
+  embed_size: 512
+  num_heads: 8
+  num_layers: 4         # Số lượng khối Transformer Decoder
+
+training:
+  batch_size: 64        # ViT đã đóng băng, Decoder 4 lớp nên VRAM khá dư dả, có thể để 64
+  learning_rate: 0.0003 # 3e-4 là điểm ngọt (sweet spot) của Transformer
+  num_epochs: 15
+  patience: 3
+
+data:
+  root_dir: "data/data/ms_coco/train2014"
+  train_ann_file: "data/data/ms_coco/annotations/subset_train.json"
+  val_ann_file: "data/data/ms_coco/annotations/subset_val.json"

@@ -1,5 +1,6 @@
 import os
 import torch
+import nltk # Thêm nltk để tokenize câu
 from torch.utils.data import Dataset, DataLoader
 from torch.nn.utils.rnn import pad_sequence
 from PIL import Image
@@ -21,7 +22,7 @@ class CocoDataset(Dataset):
 
     def __getitem__(self, index):
         ann_id = self.ids[index]
-        caption = self.coco.anns[ann_id]['caption']
+        caption = str(self.coco.anns[ann_id]['caption']) # Ép kiểu string để an toàn
         img_id = self.coco.anns[ann_id]['image_id']
         path = self.coco.loadImgs(img_id)[0]['file_name']
 
@@ -31,10 +32,17 @@ class CocoDataset(Dataset):
         if self.transform is not None:
             img = self.transform(img)
 
-        # Chuyển text thành chuỗi số: <sos> + [chuỗi index] + <eos>
-        numericalized_caption = [self.vocab.stoi["<sos>"]]
-        numericalized_caption += self.vocab.numericalize(caption)
-        numericalized_caption.append(self.vocab.stoi["<eos>"])
+        # --- SỬA Ở ĐÂY: Tokenize và Numericalize theo chuẩn Vocabulary mới ---
+        tokens = nltk.tokenize.word_tokenize(caption.lower())
+        
+        # Bắt đầu bằng token <start>
+        numericalized_caption = [self.vocab.word2idx[self.vocab.start_word]]
+        
+        # Chuyển đổi từng từ thành index thông qua __call__ của vocab
+        numericalized_caption.extend([self.vocab(token) for token in tokens])
+        
+        # Kết thúc bằng token <end>
+        numericalized_caption.append(self.vocab.word2idx[self.vocab.end_word])
 
         return img, torch.tensor(numericalized_caption)
 
@@ -64,7 +72,14 @@ class CapsCollate:
 
 def get_loader(root_dir, ann_file, vocab, transform, batch_size=32, num_workers=0, limit=50000, shuffle=True):
     dataset = CocoDataset(root_dir, ann_file, vocab, transform, limit)
-    pad_idx = vocab.stoi["<pad>"]
+    
+    # --- SỬA Ở ĐÂY: Xử lý pad_idx ---
+    # File Vocabulary của bạn dùng word2idx. Nếu bạn chưa add("<pad>") vào vocab, 
+    # hàm này sẽ tự động fallback về mượn index 0 (của <start>) làm pad value để tránh lỗi.
+    if "<pad>" in vocab.word2idx:
+        pad_idx = vocab.word2idx["<pad>"]
+    else:
+        pad_idx = 0 
 
     loader = DataLoader(
         dataset=dataset,
