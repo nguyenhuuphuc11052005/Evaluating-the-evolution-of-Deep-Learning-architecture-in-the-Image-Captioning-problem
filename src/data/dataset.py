@@ -85,7 +85,7 @@ def get_loader(root_dir, ann_file, vocab, transform, batch_size=32, num_workers=
         dataset=dataset,
         batch_size=batch_size,
         num_workers=num_workers,
-        shuffle=True, # Trộn ảnh lên cho mỗi epoch
+        shuffle=shuffle, # Trộn ảnh lên cho mỗi epoch
         collate_fn=CapsCollate(pad_idx=pad_idx)
     )
     return loader
