@@ -143,7 +143,7 @@ class EvalCollate:
 
         return imgs, all_caps
     
-def get_eval_loader(root_dir, ann_file, vocab, transform, batch_size:int=32, num_workers:int=0):
+def get_eval_loader(root_dir, ann_file, vocab, transform, batch_size:int=1, num_workers:int=0):
 
     dataset = CocoEvalDataset( root_dir, ann_file, vocab, transform)
 
