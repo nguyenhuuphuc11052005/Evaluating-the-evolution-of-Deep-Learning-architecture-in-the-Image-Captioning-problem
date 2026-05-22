@@ -52,7 +52,7 @@ class ComputeMetrics:
         :return: danh sách tokens
         '''
         # SỬA: dùng tokenizer của ntlk để tránh xóa "don't" -> "dont"
-        return ntlk.word_tokenize(text.lower())
+        return nltk.word_tokenize(text.lower())
     
     # BLEU
     def _corpus_bleu_score(self, references: List[List[str]], 
