@@ -1,28 +1,19 @@
 import torch
-from PIL import Image
-import matplotlib.pyplot as plt
 import torchvision.transforms as transforms
 
-def generate_caption(image_path, encoder, decoder, vocab, device, model_type='lstm', mode='greedy', beam_width=5):
+def generate_caption(image_tensor, encoder, decoder, vocab, device, model_type='lstm', mode='greedy', beam_width=5):
     """
     Hàm sinh caption hỗ trợ nhiều kiến trúc mô hình.
     - model_type: 'lstm', 'm2_transformer', hoặc 'vit_transformer'
     """
     # 1. Chuyển mô hình sang chế độ đánh giá
-    encoder.eval()
+    if encoder is not None:
+        # tránh lỗi mô hình VitTransformer vì không có encoder
+        encoder.eval()
     decoder.eval()
 
-    # 2. Chuẩn bị Transform chuẩn ImageNet
-    transform = transforms.Compose([
-        transforms.Resize((224, 224)),
-        transforms.ToTensor(),
-        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-    ])
-
-    # 3. Load và xử lý ảnh
-    image = Image.open(image_path).convert("RGB")
-    image_tensor = transform(image).unsqueeze(0).to(device)
-
+    image_tensor = image_tensor.to(device)
+    
     # Lấy index của các token đặc biệt (Dành cho dòng họ Transformer)
     start_idx = vocab.word2idx.get(vocab.start_word, 1)
     end_idx = vocab.word2idx.get(vocab.end_word, 2)
@@ -58,9 +49,12 @@ def generate_caption(image_path, encoder, decoder, vocab, device, model_type='ls
         else:
             raise ValueError("model_type không hợp lệ! Hãy chọn 'lstm', 'm2_transformer', hoặc 'vit_transformer'")
 
-    # 4. Chuyển đổi chuỗi ID thành từ vựng thực tế
+    # Chuyển đổi chuỗi ID thành từ vựng thực tế
     words = []
     for word_id in sampled_ids:
+        if torch.is_tensor(word_id):
+            word_id = word_id.item()
+
         word = vocab.idx2word[word_id]
         
         # Dừng lại nếu gặp token kết thúc câu
@@ -72,26 +66,4 @@ def generate_caption(image_path, encoder, decoder, vocab, device, model_type='ls
             words.append(word)
 
     caption = " ".join(words)
-    return caption, image
-
-
-def show_inference(image_path, encoder, decoder, vocab, device, model_type='lstm'):
-    """
-    Hàm hiển thị ảnh và so sánh kết quả giữa Greedy và Beam Search.
-    """
-    print(f"Đang sinh câu (Architecture: {model_type})...")
-    
-    # Sinh câu bằng 2 phương pháp
-    greedy_cap, img = generate_caption(image_path, encoder, decoder, vocab, device, model_type=model_type, mode='greedy')
-    beam_cap, _ = generate_caption(image_path, encoder, decoder, vocab, device, model_type=model_type, mode='beam_search', beam_width=5)
-    
-    # Hiển thị kết quả
-    plt.figure(figsize=(8, 8))
-    plt.imshow(img)
-    plt.axis('off')
-    
-    # Format tiêu đề cho dễ nhìn
-    title_text = f"[{model_type.upper()}]\nGreedy: {greedy_cap}\nBeam Search: {beam_cap}"
-    plt.title(title_text, fontsize=12, loc='left', pad=10)
-    plt.tight_layout()
-    plt.show()
+    return caption
