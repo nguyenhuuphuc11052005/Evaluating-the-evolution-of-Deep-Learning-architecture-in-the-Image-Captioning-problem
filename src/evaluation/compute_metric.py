@@ -51,11 +51,8 @@ class ComputeMetrics:
         :param text: (str) chuỗi đầu vào (mặc định đã loại các token vô nghĩa: eos, sos, pad)
         :return: danh sách tokens
         '''
-        text = text.lower()
-        text = re.sub(r'[^\w\s]', '', text)
-        tokens = text.split()
-
-        return tokens
+        # SỬA: dùng tokenizer của ntlk để tránh xóa "don't" -> "dont"
+        return ntlk.word_tokenize(text.lower())
     
     # BLEU
     def _corpus_bleu_score(self, references: List[List[str]], 
@@ -115,7 +112,7 @@ class ComputeMetrics:
                 scores = self.rouge_scorer.score(hypothesis, ref)
 
                 # lấy f1 để cân bằng precision và recall
-                f1 = scores['rougeL'].fmeasure
+                f1 = scores[self.rouge].fmeasure # SỬA: đổi tên biến động 
 
                 # lấy điểm số cao hơn 
                 if f1 > best_score:
@@ -233,3 +230,14 @@ class ComputeMetrics:
         # METEOR
         results['METEOR'] = meteor
         return results
+    
+def get_eval_score(references: List[List[str]], hypotheses: List[str], 
+                   smooth:bool=True, rouge:str='rougeL') -> Dict: 
+    '''
+    Calculate BLEU1~4, METEOR, ROUGE_L, CIDEr scores
+    :param references: chuỗi tham chiếu (có thể có nhiều tham chiếu cho mỗi bức ảnh)
+    :param hypotheses: chuỗi dự đoán tốt nhất cho từng bức ảnh
+    :return: scores
+    '''
+    evaluator = ComputeMetrics(smooth=smooth, rouge=rouge)
+    return evaluator.compute_all(references, hypotheses)
