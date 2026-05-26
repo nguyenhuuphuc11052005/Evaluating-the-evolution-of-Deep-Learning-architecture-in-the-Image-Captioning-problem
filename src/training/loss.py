@@ -19,11 +19,16 @@ class CaptionLoss(nn.Module):
         
         loss = self.criterion(outputs, targets)
         return loss
-    
-
 
 def get_criterion(vocab):
-    pad_idx = vocab.stoi["<pad>"]
+    # --- SỬA Ở ĐÂY: Dùng word2idx thay vì stoi ---
+    # Lấy ra index của token padding để truyền vào ignore_index
+    if hasattr(vocab, 'pad_word') and vocab.pad_word in vocab.word2idx:
+        pad_idx = vocab.word2idx[vocab.pad_word]
+    else:
+        # Fallback an toàn phòng trường hợp vocab chưa kịp update pad_word
+        pad_idx = vocab.word2idx.get("<pad>", 0) 
+        
     # Trả về hàm CrossEntropyLoss chuẩn của PyTorch
-    criterion = nn.CrossEntropyLoss(ignore_index=pad_idx,label_smoothing=0.1) # Thêm label smoothing để cải thiện độ ổn định khi huấn luyện
+    criterion = nn.CrossEntropyLoss(ignore_index=pad_idx, label_smoothing=0.1) 
     return criterion

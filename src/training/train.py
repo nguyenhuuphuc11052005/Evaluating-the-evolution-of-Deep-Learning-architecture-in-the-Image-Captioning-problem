@@ -1,4 +1,5 @@
 import os
+# from pyexpat import model
 import torch.cuda.amp as amp # Thêm thư viện
 import torch.nn as nn
 from logging import config
@@ -21,9 +22,10 @@ def train_model(train_loader, val_loader, encoder, decoder, vocab,config,resume_
     encoder, decoder = encoder.to(device), decoder.to(device)
     
     scaler = amp.GradScaler() # Khởi tạo GradScaler cho Mixed Precision Training
-    learning_rate = config['training']['learning_rate']
+    # learning_rate = config['training']['learning_rate']
     num_epochs = config['training']['num_epochs']
     exp_name = config['experiment_name']
+    learning_rate = config['training']['learning_rate']
 
     # ================= CẬP NHẬT ĐƯỜNG DẪN ĐỘNG TẠI ĐÂY =================
     # 1. Đường dẫn lưu Checkpoint cho riêng mô hình này
@@ -36,9 +38,14 @@ def train_model(train_loader, val_loader, encoder, decoder, vocab,config,resume_
     model_save_path = os.path.join(checkpoint_dir, "best_model.pth")
     # 2. Khởi tạo Loss, Optimizer và Callbacks
     criterion = get_criterion(vocab)
-    optimizer = optim.Adam(decoder.parameters(), lr=learning_rate) # Tối ưu hóa Adam 
+    # optimizer = optim.Adam(decoder.parameters(), lr=learning_rate) # Tối ưu hóa Adam 
     early_stopping = EarlyStopping(patience=3, save_path=model_save_path)
+    # Learning rates
+
+    optimizer = optim.Adam(decoder.parameters(), lr=learning_rate)  
+
     
+
     # 3. Quản lý thực nghiệm với TensorBoard
     # Ghi log biểu đồ tự động 
     logger, log_dir = setup_logger(exp_name)

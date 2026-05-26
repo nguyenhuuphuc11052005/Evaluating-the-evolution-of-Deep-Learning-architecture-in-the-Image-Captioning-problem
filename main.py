@@ -4,11 +4,12 @@ import torch
 import torch.nn as nn
 import argparse
 import torchvision.transforms as transforms
-# import torch.distributed as dist
+import pickle
 import warnings
 warnings.filterwarnings("ignore")
 
-from src.data.build_vocab import Vocabulary
+# from src.data.build_vocab import Vocabulary
+from src.data.vocabulary import Vocabulary
 from src.data.dataset import get_loader
 from src.models.encoder import ResNet50Encoder,ResNet50SpatialEncoder
 from src.models.decoder_lstm import LSTMDecoder
@@ -17,15 +18,15 @@ from src.training.train import train_model
 from src.utils import set_seed, load_config
 from src.models.vit_transformer import ViTCaptioningModel
 
-def build_vocab_from_json(json_path, freq_threshold=5):
-    print(f"Đang phân tích ngôn ngữ từ: {json_path}...")
-    with open(json_path, 'r') as f:
-        data = json.load(f)
+# def build_vocab_from_json(json_path, freq_threshold=5):
+#     print(f"Đang phân tích ngôn ngữ từ: {json_path}...")
+#     with open(json_path, 'r') as f:
+#         data = json.load(f)
         
-    captions = [ann['caption'] for ann in data['annotations']]
-    vocab = Vocabulary(freq_threshold)
-    vocab.build_vocabulary(captions)
-    return vocab
+#     captions = [ann['caption'] for ann in data['annotations']]
+#     vocab = Vocabulary(freq_threshold)
+#     vocab.build_vocab(captions)
+#     return vocab
 
 def main(config_path):
     # dist.init_process_group(backend="nccl")
@@ -45,11 +46,24 @@ def main(config_path):
     batch_size = config['training']['batch_size']
     learning_rate = config['training']['learning_rate']
     num_epochs = config['training']['num_epochs']
+    path_cap =  config['data']['path_cap']
+    path_vocab = config['training']['path_vocab']
     
-    # 3. Chuẩn bị Dữ liệu
-    vocab = build_vocab_from_json(train_ann_file, freq_threshold=5)
+    print("-> Khởi tạo và xử lý Vocabulary...")
+    # GỌI TRỰC TIẾP CLASS VOCABULARY. 
+    # Class này sẽ tự động lo việc build từ JSON hoặc load từ file Pickle.
+    vocab_save_path = "vocab.pkl"
+    
+    print("-> Khởi tạo và xử lý Vocabulary...")
+    vocab = Vocabulary(
+        vocab_threshold=5,
+        vocab_file=vocab_save_path, # Truyền đường dẫn mới này vào
+        annotations_file=path_cap,
+        vocab_from_file=False 
+    )
     vocab_size = len(vocab)
-    
+    print(f"-> Kích thước tập từ vựng: {vocab_size} từ")
+
     train_transform = transforms.Compose([
         transforms.Resize((256, 256)),
         transforms.RandomCrop((224, 224)), # Cắt ngẫu nhiên
@@ -93,7 +107,7 @@ def main(config_path):
         num_heads = config['model']['num_heads']
         num_layers = config['model']['num_layers']
         
-        # Model này đã bọc sẵn cả Encoder và Decoder bên trong
+        # Model này đã bọc sẵn cả Encoder và Decoder bên trong  
         # Ta khởi tạo nó, sau đó tách nó ra thành biến encoder/decoder giả để đưa vào hàm train cũ
         full_model = ViTCaptioningModel(vocab_size, embed_size, num_heads, num_layers)
         
@@ -102,7 +116,7 @@ def main(config_path):
         # vì `full_model` (được gán cho biến `decoder`) sẽ ôm đồm làm toàn bộ việc forward pass.
         encoder = nn.Identity() 
         decoder = full_model
-    # 5. Huấn luyện
+    # 5. Huấn luyện 
     train_model(
         train_loader=train_loader, 
         val_loader=val_loader, 
