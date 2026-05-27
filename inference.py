@@ -1,5 +1,9 @@
 import torch
 import torchvision.transforms as transforms
+import json
+import textwrap
+from PIL import Image
+import matplotlib.pyplot as plt
 
 def generate_caption(image_tensor, encoder, decoder, vocab, device, model_type='lstm', mode='greedy', beam_width=5):
     """
@@ -67,3 +71,44 @@ def generate_caption(image_tensor, encoder, decoder, vocab, device, model_type='
 
     caption = " ".join(words)
     return caption
+
+def wrap_multiline_text(text, width=90):
+    lines = text.split("\n")
+    wrapped_lines = []
+
+    for line in lines:
+        if line.strip() == "":
+            wrapped_lines.append("")
+        else:
+            wrapped_lines.extend(textwrap.wrap(line, width=width))
+
+    return "\n".join(wrapped_lines)
+
+def plot_caption_from_log(log_item, save_path=None, figsize=(8, 6)):
+    """
+    Vẽ 1 ảnh từ 1 item trong file eval_predictions.json.
+    log_item gồm: image_path, prediction, references.
+    """
+
+    image = Image.open(log_item["image_path"]).convert("RGB")
+
+    prediction = log_item["prediction"]
+    references = log_item["references"]
+
+    title = f"Prediction: {prediction}\n\n"
+    title += "\n".join([
+        f"Ref {i+1}: {ref}" for i, ref in enumerate(references)
+    ])
+
+    wrapped_title = wrap_multiline_text(title, width=95)
+
+    plt.figure(figsize=figsize)
+    plt.imshow(image)
+    plt.axis("off")
+    plt.title(wrapped_title, fontsize=10, loc="left", pad=12)
+    plt.tight_layout()
+
+    if save_path is not None:
+        plt.savefig(save_path, bbox_inches="tight", dpi=200)
+
+    plt.show()
