@@ -69,8 +69,6 @@ def evaluate_model(args, encoder, decoder, vocab, device, logger=None, log_dir=N
             # số câu đã dự đoán 
             if logger and len(hypotheses) % 1000 == 0:
                 logger.info(f"Evaluated {len(hypotheses)} samples")
-    if logger:
-        logger.info("Start evaluate...")
         
     metrics = get_eval_score(references=references, hypotheses=hypotheses)
     # thêm log cho kết quả của metric
