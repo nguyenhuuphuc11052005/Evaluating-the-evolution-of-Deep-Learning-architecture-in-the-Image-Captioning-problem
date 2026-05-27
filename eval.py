@@ -127,7 +127,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # thêm đường dẫn cho logger 
-    experiment_name = f"eval_{args.model}_{args.decode_mode}_{args.beam_size}"
+    experiment_name = f"eval_{args.model_type}_{args.decode_mode}_{args.beam_size}"
     logger, log_dir = setup_logger(experiment_name=experiment_name)
     logger.info("Start evaluation")
     logger.info(f"Model type: {args.model_type}")
