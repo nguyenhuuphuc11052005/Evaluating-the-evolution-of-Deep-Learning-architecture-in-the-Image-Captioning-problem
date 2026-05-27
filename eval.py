@@ -125,7 +125,8 @@ def build_model(args, config, vocab_size, device):
         embed_size = config['model']['embed_size']
         num_heads = config['model']['num_heads']
         num_layers = config['model']['num_layers']
-        decoder = ViTCaptioningModel(vocab_size=vocab_size, embed_size=embed_size,num_heads=num_heads).to(device)
+        decoder = ViTCaptioningModel(vocab_size=vocab_size, embed_size=embed_size,
+                                     num_heads=num_heads, num_decoder_layers=num_layers).to(device)
         decoder.load_state_dict(checkpoint.get('decoder', checkpoint.get('decoder_state_dict')))
     else:
         raise ValueError("Sai model_type!")
