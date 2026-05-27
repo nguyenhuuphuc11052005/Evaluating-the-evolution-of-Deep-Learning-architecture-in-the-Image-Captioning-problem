@@ -4,6 +4,7 @@ import torch
 import pickle
 import argparse
 import warnings
+import json 
 warnings.filterwarnings("ignore")
 from src.data.dataset import get_eval_loader, get_transforms
 from inference import generate_caption
@@ -13,13 +14,16 @@ from src.models.encoder import ResNet50Encoder
 from src.models.m2_transformer import M2TransformerDecoder
 from src.models.vit_transformer import ViTCaptioningModel
 from src.utils import load_config, set_seed
+from src.logger import setup_logger
 
-def evaluate_model(args, encoder, decoder, vocab, device):
+def evaluate_model(args, encoder, decoder, vocab, device, logger=None, log_dir=None):
     '''
     Đánh giá chung cho toàn model
     '''
     # loader
     loader = get_eval_loader(args.images_path, args.ann_file, vocab, get_transforms())
+    # logger
+    prediction_logs = []
 
     references = []
     hypotheses = []
@@ -46,9 +50,33 @@ def evaluate_model(args, encoder, decoder, vocab, device):
                     }
                 ])
                 refs.append(ref)
+            # thêm log cho predictions
+            prediction_logs.append({
+                "index": len(hypotheses) - 1,   # index: bắt đầu từ 0
+                "prediction": prediction,       # prediction: câu dự đoán từ mô hình
+                "references": refs              # references: câu tham chiếu của dữ liệu 
+            })
+            # số câu đã dự đoán 
+            if logger and len(hypotheses) % 100 == 0:
+                logger.info(f"Evaluated {len(hypotheses)} samples")
 
             references.append(refs)
-    return get_eval_score(references=references, hypotheses=hypotheses)
+    metrics = get_eval_score(references=references, hypotheses=hypotheses)
+    # thêm log cho kết quả của metric
+    if logger: 
+        logger.info("Evaluate finished")
+        logger.info("Metrics: ", metrics)
+    # lưu predictions vào file json 
+    if log_dir:
+        pred_path = os. path.join(log_dir, 'eval_predictions.json')
+         
+        with open(pred_path, 'w', encoding='utf-8') as f:
+            json.dump(prediction_logs, f, ensure_ascii=False, indent=2)
+
+        if logger:
+            logger.info(f"Saved prediction logs to {pred_path}")
+
+    return metrics
 
 def build_model(args, config, vocab_size, device):
     '''
@@ -97,7 +125,20 @@ if __name__ == "__main__":
     parser.add_argument("--images_path", required=True)
     parser.add_argument("--ann_file", required=True)
     args = parser.parse_args()
+
+    # thêm đường dẫn cho logger 
+    experiment_name = f"eval_{args.model}_{args.decode_mode}_{args.beam_size}"
+    logger, log_dir = setup_logger(experiment_name=experiment_name)
+    logger.info("Start evaluation")
+    logger.info(f"Model type: {args.model_type}")
+    logger.info(f"Decode mode: {args.decode_mode}")
+    logger.info(f"Beam size: {args.beam_size}")
+    logger.info(f"Checkpoint: {args.checkpoint}")
+    logger.info(f"Images path: {args.images_path}")
+    logger.info(f"Annotation file: {args.ann_file}")
+
     set_seed()
+
     # 1. Khởi tạo device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     vocab_path = 'vocab.pkl'
@@ -109,7 +150,8 @@ if __name__ == "__main__":
     config = load_config(args.config)
     encoder, decoder = build_model(args, config=config, vocab_size=vocab_size, device=device)
 
-    metrics = evaluate_model(args, encoder, decoder, vocab, device)
+    metrics = evaluate_model(args, encoder, decoder, vocab, device,
+                             logger=logger, log_dir=log_dir)
 
     print(f"{args.decode_mode} | beam={args.beam_size}")
     print("BLEU-1 {} BLEU-2 {} BLEU-3 {} BLEU-4 {} METEOR {} ROUGE_L {} CIDEr {}".format
