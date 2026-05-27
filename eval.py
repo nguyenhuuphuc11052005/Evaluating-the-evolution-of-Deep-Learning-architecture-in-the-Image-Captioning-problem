@@ -29,7 +29,7 @@ def evaluate_model(args, encoder, decoder, vocab, device, logger=None, log_dir=N
     hypotheses = []
 
     with torch.no_grad():
-        for image, caps in tqdm(loader, desc = f'EVALUATING {args.model_type}'):
+        for idx, (image, caps) in enumerate(tqdm(loader, desc = f'EVALUATING {args.model_type}')):
             image = image.to(device)
 
             prediction = generate_caption(image, encoder, decoder, vocab, device, 
@@ -50,27 +50,44 @@ def evaluate_model(args, encoder, decoder, vocab, device, logger=None, log_dir=N
                     }
                 ])
                 refs.append(ref)
+            references.append(refs)
+            # lấy thông tin của ảnh để vẽ ảnh 
+            image_id = loader.dataset.ids[idx]
+            img_info = loader.dataset.coco.loadImgs(image_id)[0]
+            file_name = img_info['file_name']
+            image_path = os.path.join(args.images_path, file_name)
+
             # thêm log cho predictions
             prediction_logs.append({
-                "index": len(hypotheses) - 1,   # index: bắt đầu từ 0
+                "index": idx,                   # index: bắt đầu từ 0
+                "image_id": image_id,           # id của ảnh
+                "file_name": file_name,         # tên ảnh
+                "image_path": image_path,        # đường dẫn của ảnh 
                 "prediction": prediction,       # prediction: câu dự đoán từ mô hình
                 "references": refs              # references: câu tham chiếu của dữ liệu 
             })
             # số câu đã dự đoán 
-            if logger and len(hypotheses) % 100 == 0:
+            if logger and len(hypotheses) % 1000 == 0:
                 logger.info(f"Evaluated {len(hypotheses)} samples")
 
-            references.append(refs)
     metrics = get_eval_score(references=references, hypotheses=hypotheses)
     # thêm log cho kết quả của metric
     if logger: 
         logger.info("Evaluate finished")
-        logger.info("Metrics: ", metrics)
+        logger.info(f"Metrics: {metrics}")
     # lưu predictions vào file json 
     if log_dir:
-        pred_path = os. path.join(log_dir, 'eval_predictions.json')
-         
-        with open(pred_path, 'w', encoding='utf-8') as f:
+        version = 1
+
+        while True:
+            pred_path = os.path.join(log_dir,f"eval_predictions_ver{version}.json")
+
+            if not os.path.exists(pred_path):
+                break
+
+            version += 1
+
+        with open(pred_path, "w", encoding="utf-8") as f:
             json.dump(prediction_logs, f, ensure_ascii=False, indent=2)
 
         if logger:
