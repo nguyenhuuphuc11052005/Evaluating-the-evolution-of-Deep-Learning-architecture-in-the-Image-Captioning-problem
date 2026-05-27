@@ -62,14 +62,16 @@ def evaluate_model(args, encoder, decoder, vocab, device, logger=None, log_dir=N
                 "index": idx,                   # index: bắt đầu từ 0
                 "image_id": image_id,           # id của ảnh
                 "file_name": file_name,         # tên ảnh
-                "image_path": image_path,        # đường dẫn của ảnh 
+                "image_path": image_path,       # đường dẫn của ảnh 
                 "prediction": prediction,       # prediction: câu dự đoán từ mô hình
                 "references": refs              # references: câu tham chiếu của dữ liệu 
             })
             # số câu đã dự đoán 
             if logger and len(hypotheses) % 1000 == 0:
                 logger.info(f"Evaluated {len(hypotheses)} samples")
-
+    if logger:
+        logger.info("Start evaluate...")
+        
     metrics = get_eval_score(references=references, hypotheses=hypotheses)
     # thêm log cho kết quả của metric
     if logger: 
