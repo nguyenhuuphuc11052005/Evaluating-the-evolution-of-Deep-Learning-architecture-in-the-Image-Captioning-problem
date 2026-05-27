@@ -10,7 +10,7 @@ from src.data.dataset import get_eval_loader, get_transforms
 from inference import generate_caption
 from src.evaluation.compute_metric import get_eval_score
 from src.models.decoder_lstm import LSTMDecoder
-from src.models.encoder import ResNet50Encoder
+from src.models.encoder import ResNet50Encoder, ResNet50SpatialEncoder
 from src.models.m2_transformer import M2TransformerDecoder
 from src.models.vit_transformer import ViTCaptioningModel
 from src.utils import load_config, set_seed
@@ -114,7 +114,7 @@ def build_model(args, config, vocab_size, device):
         num_heads = config['model']['num_heads']
         num_layers = config['model']['num_layers']
         max_seq_len = config['model']['max_seq_len']
-        encoder = ResNet50Encoder(embed_size).to(device)
+        encoder = ResNet50SpatialEncoder(embed_size).to(device)
         decoder = M2TransformerDecoder(vocab_size=vocab_size,embed_size=embed_size,num_heads=num_heads,
                                        num_layers=num_layers, max_seq_len=max_seq_len).to(device)
         encoder.load_state_dict(checkpoint.get('encoder', checkpoint.get('encoder_state_dict')))
