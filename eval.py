@@ -8,7 +8,7 @@ import json
 warnings.filterwarnings("ignore")
 from src.data.dataset import get_eval_loader, get_transforms
 from inference import generate_caption
-from src.evaluation.compute_metric import get_eval_score, get_eval_image
+from src.evaluation.compute_metric import get_eval_score, ComputeMetrics
 from src.models.decoder_lstm import LSTMDecoder
 from src.models.encoder import ResNet50Encoder, ResNet50SpatialEncoder
 from src.models.m2_transformer import M2TransformerDecoder
@@ -27,7 +27,7 @@ def evaluate_model(args, encoder, decoder, vocab, device, logger=None, log_dir=N
 
     references = []
     hypotheses = []
-
+    metric_evaluator = ComputeMetrics() 
     with torch.no_grad():
         for idx, (image, caps) in enumerate(tqdm(loader, desc = f'EVALUATING {args.model_type}')):
             image = image.to(device)
@@ -53,7 +53,7 @@ def evaluate_model(args, encoder, decoder, vocab, device, logger=None, log_dir=N
             references.append(refs)
 
             # tính toán cho từng ảnh 
-            per_image_metrics = get_eval_image(refs, prediction)
+            per_image_metrics = metric_evaluator.compute_single_image(references=refs, hypothesis=prediction)
 
             # lấy thông tin của ảnh để vẽ ảnh 
             image_id = loader.dataset.ids[idx]
