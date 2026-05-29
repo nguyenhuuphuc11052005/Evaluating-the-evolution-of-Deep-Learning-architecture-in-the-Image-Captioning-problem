@@ -5,7 +5,7 @@ import os
 import textwrap
 from PIL import Image
 import matplotlib.pyplot as plt
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 
 def generate_caption(image_tensor, encoder, decoder, vocab, device, model_type='lstm', mode='greedy', beam_width=5):
     """
@@ -170,21 +170,35 @@ def select_highest_score_items(data: List[Dict[str, Any]], score_key: str = "avg
     # lấy top_k ảnh có điểm cao nhất
     return sorted_items[:top_k]
 
-def plot_caption_from_log(log_item: Dict[str, Any], save_path: Optional[str] = None,
-                          figsize: tuple = (8, 6), wrap_width: int = 100) -> None:
+def plot_caption_from_log(log_item: Dict[str, Any], image_root: Optional[str] = None,
+                          save_path: Optional[str] = None, figsize: Tuple[int, int] = (8, 6), 
+                          wrap_width: int = 100) -> None:
     '''
     Vẽ một ảnh cùng với prediction caption, references captions và các metric đánh giá.
-    :param log_item: Dictionary chứa thông tin của một ảnh, gồm image_path, prediction, references và metric
+
+    :param log_item: Dictionary chứa thông tin của một ảnh, gồm image_path, file_name, prediction, references và metric
+    :param image_root: Thư mục gốc chứa ảnh. Nếu khác None, hàm sẽ dùng image_root + file_name thay vì image_path trong JSON
     :param save_path: Đường dẫn lưu ảnh sau khi vẽ, nếu None thì không lưu
     :param figsize: Kích thước figure khi hiển thị ảnh
     :param wrap_width: Số ký tự tối đa trên mỗi dòng trong phần title
     :return: None
     '''
 
-    # Lấy đường dẫn ảnh từ log_item
-    image_path = log_item.get("image_path", None)
+    # Nếu truyền image_root, ưu tiên tạo đường dẫn ảnh từ image_root và file_name
+    if image_root is not None:
+        file_name = log_item.get("file_name", None)
 
-    # Kiểm tra image_path có tồn tại trong log_item không
+        if file_name is None:
+            print("Item không có trường file_name.")
+            return
+
+        image_path = os.path.join(image_root, file_name)
+
+    # Nếu không truyền image_root, dùng image_path có sẵn trong JSON
+    else:
+        image_path = log_item.get("image_path", None)
+
+    # Kiểm tra image_path có tồn tại không
     if image_path is None:
         print("Item không có trường image_path.")
         return
@@ -212,63 +226,58 @@ def plot_caption_from_log(log_item: Dict[str, Any], save_path: Optional[str] = N
     rouge_l = log_item.get("ROUGE_L", None)
     avg_score = log_item.get("avg_score", None)
 
-    # Khởi tạo title hiển thị phía trên ảnh
+    # Khởi tạo title
     title = ""
 
-    # Thêm thông tin index và image_id
+    # Thêm index và image_id
     title += f"Index: {log_item.get('index', 'N/A')} | "
     title += f"Image ID: {log_item.get('image_id', 'N/A')}\n"
 
-    # Thêm avg_score nếu tồn tại
+    # Thêm các metric
     if avg_score is not None:
         title += f"Avg Score: {avg_score:.5f} | "
 
-    # Thêm BLEU-1 nếu tồn tại
     if bleu1 is not None:
         title += f"BLEU-1: {bleu1:.5f} | "
 
-    # Thêm BLEU-2 nếu tồn tại
     if bleu2 is not None:
         title += f"BLEU-2: {bleu2:.5f} | "
 
-    # Thêm BLEU-3 nếu tồn tại
     if bleu3 is not None:
         title += f"BLEU-3: {bleu3:.5f} | "
 
-    # Thêm BLEU-4 nếu tồn tại
     if bleu4 is not None:
         title += f"BLEU-4: {bleu4:.5f} | "
 
-    # Thêm METEOR nếu tồn tại
     if meteor is not None:
         title += f"METEOR: {meteor:.5f} | "
 
-    # Thêm ROUGE-L nếu tồn tại
     if rouge_l is not None:
         title += f"ROUGE-L: {rouge_l:.5f}"
 
-    # Thêm prediction caption
+    # Thêm prediction
     title += "\n\n"
     title += f"Prediction: {prediction}\n\n"
 
-    # Thêm các reference captions
-    title += "\n".join([f"Ref {i + 1}: {ref}" for i, ref in enumerate(references)])
+    # Thêm references
+    title += "\n".join([
+        f"Ref {i + 1}: {ref}" for i, ref in enumerate(references)
+    ])
 
-    # Wrap title để tránh caption quá dài bị tràn khỏi figure
+    # Wrap title cho dễ đọc
     wrapped_title = wrap_multiline_text(text=title, width=wrap_width)
 
+    # Vẽ ảnh
     plt.figure(figsize=figsize)
     plt.imshow(image)
     plt.axis("off")
     plt.title(wrapped_title, fontsize=9, loc="left", pad=12)
     plt.tight_layout()
 
-    # Nếu save_path khác None thì lưu figure
+    # Lưu ảnh nếu có save_path
     if save_path is not None:
-        # Lấy thư mục cha của save_path
         save_folder = os.path.dirname(save_path)
 
-        # Nếu thư mục cha tồn tại trong đường dẫn thì tạo thư mục
         if save_folder != "":
             os.makedirs(save_folder, exist_ok=True)
 
@@ -278,8 +287,8 @@ def plot_caption_from_log(log_item: Dict[str, Any], save_path: Optional[str] = N
     plt.close()
 
 def plot_selected_score_images(json_path: str, top_k: int = 10, score_key: str = "avg_score",
-                               mode: str = "lowest", save_dir: Optional[str] = None, 
-                               figsize: tuple = (8, 6), wrap_width: int = 100) -> None:
+                               mode: str = "lowest", image_root: Optional[str] = None, save_dir: Optional[str] = None,
+                               figsize: Tuple[int, int] = (8, 6), wrap_width: int = 100) -> None:
     '''
     Đọc file JSON, chọn top_k ảnh tốt nhất hoặc tệ nhất theo một metric,
     sau đó vẽ ảnh với prediction caption và references captions.
@@ -288,6 +297,7 @@ def plot_selected_score_images(json_path: str, top_k: int = 10, score_key: str =
     :param top_k: Số lượng ảnh cần vẽ
     :param score_key: Metric dùng để sắp xếp, ví dụ: avg_score, BLEU-4, METEOR
     :param mode: Chế độ chọn ảnh, gồm "lowest" hoặc "highest"
+    :param image_root: Thư mục gốc chứa ảnh COCO, dùng để thay thế image_path trong JSON
     :param save_dir: Thư mục lưu ảnh kết quả, nếu None thì chỉ hiển thị và không lưu
     :param figsize: Kích thước figure cho mỗi ảnh
     :param wrap_width: Số ký tự tối đa trên mỗi dòng trong phần title
@@ -297,30 +307,27 @@ def plot_selected_score_images(json_path: str, top_k: int = 10, score_key: str =
     # Đọc dữ liệu từ file JSON
     data = load_json(json_path)
 
-    # Kiểm tra mode có hợp lệ không
+    # Kiểm tra mode
     if mode not in ["lowest", "highest"]:
         raise ValueError("mode phải là 'lowest' hoặc 'highest'.")
 
-    # Chọn top_k ảnh có score thấp nhất
+    # Chọn ảnh theo mode
     if mode == "lowest":
         selected_items = select_lowest_score_items(data=data, score_key=score_key, top_k=top_k)
         prefix = "lowest"
         print(f"Đã chọn {len(selected_items)} ảnh có {score_key} thấp nhất.")
 
-    # Chọn top_k ảnh có score cao nhất
     else:
         selected_items = select_highest_score_items(data=data, score_key=score_key, top_k=top_k)
         prefix = "highest"
         print(f"Đã chọn {len(selected_items)} ảnh có {score_key} cao nhất.")
 
-    # Nếu có save_dir thì tạo thư mục lưu ảnh
+    # Tạo thư mục lưu nếu cần
     if save_dir is not None:
         os.makedirs(save_dir, exist_ok=True)
 
-    # Duyệt qua từng item đã chọn
+    # Duyệt qua từng ảnh được chọn
     for rank, item in enumerate(selected_items, start=1):
-
-        # In thông tin ảnh đang được xử lý
         print(
             f"[{rank}/{len(selected_items)}] "
             f"index={item.get('index')} | "
@@ -328,10 +335,9 @@ def plot_selected_score_images(json_path: str, top_k: int = 10, score_key: str =
             f"file={item.get('file_name')}"
         )
 
-        # Mặc định không lưu ảnh
+        # Tạo đường dẫn lưu ảnh nếu có save_dir
         save_path = None
 
-        # Nếu có save_dir thì tạo đường dẫn lưu ảnh
         if save_dir is not None:
             image_id = item.get("image_id", rank)
 
@@ -340,5 +346,5 @@ def plot_selected_score_images(json_path: str, top_k: int = 10, score_key: str =
                 f"{prefix}_{rank:02d}_image_{image_id}.png"
             )
 
-        # Vẽ ảnh với caption và references
-        plot_caption_from_log(log_item=item, save_path=save_path, figsize=figsize, wrap_width=wrap_width)
+        # Vẽ ảnh
+        plot_caption_from_log(log_item=item, image_root=image_root, save_path=save_path, figsize=figsize, wrap_width=wrap_width)
