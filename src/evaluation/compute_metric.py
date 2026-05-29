@@ -252,7 +252,7 @@ class ComputeMetrics:
         # ROUGE-L
         best_rouge = 0.0
         for ref in refs:
-            scores = self.rouge_scorer.score(hyp, ref)
+            scores = self.rouge_scorer.score(hypothesis, ref)
             f1 = scores[self.rouge].fmeasure
             best_rouge = max(best_rouge, f1)
             
@@ -285,9 +285,9 @@ def get_eval_score(references: List[List[str]], hypotheses: List[str],
 def get_eval_image(references: List[str], hypotheses: str, 
                    smooth:bool=True, rouge:str='rougeL') -> Dict: 
     '''
-    Calculate BLEU1~4, METEOR, ROUGE_L scores for each image
-    :param references: chuỗi tham chiếu (có thể có nhiều tham chiếu cho mỗi bức ảnh)
-    :param hypotheses: chuỗi dự đoán tốt nhất cho từng bức ảnh
+    Calculate BLEU1~4, METEOR, ROUGE_L scores for one image.
+    :param references: list caption tham chiếu của một ảnh
+    :param hypothesis: caption dự đoán của mô hình cho ảnh đó
     :return: scores
     '''
     evaluator = ComputeMetrics(smooth=smooth, rouge=rouge)
