@@ -251,8 +251,9 @@ class ComputeMetrics:
         meteor = meteor_score(references=refs, hypothesis=hyp)    
         # ROUGE-L
         best_rouge = 0.0
-        for ref in refs:
-            scores = self.rouge_scorer.score(hypothesis, ref)
+        # dùng chuỗi gốc vì rouge cần dạng [str] chứ không dùng với [token1, token2,..]
+        for ref in references:
+            scores = self.rouge_scorer.score(ref, hypothesis)
             f1 = scores[self.rouge].fmeasure
             best_rouge = max(best_rouge, f1)
             
@@ -265,10 +266,10 @@ class ComputeMetrics:
             'BLEU-4': round(bleu4,5)
         }
         # ROUGE-L
-        results['ROUGE_L'] = best_rouge
+        results['ROUGE_L'] = round(best_rouge,5)
         # METEOR
-        results['METEOR'] = meteor
-        results['AVERAGE'] = avg_score
+        results['METEOR'] = round(meteor,5)
+        results['AVERAGE'] = round(avg_score,5)
         return results
         
 def get_eval_score(references: List[List[str]], hypotheses: List[str], 
@@ -282,7 +283,7 @@ def get_eval_score(references: List[List[str]], hypotheses: List[str],
     evaluator = ComputeMetrics(smooth=smooth, rouge=rouge)
     return evaluator.compute_all(references, hypotheses)
 
-def get_eval_image(references: List[str], hypotheses: str, 
+def get_eval_image(references: List[str], hypothesis: str, 
                    smooth:bool=True, rouge:str='rougeL') -> Dict: 
     '''
     Calculate BLEU1~4, METEOR, ROUGE_L scores for one image.
@@ -291,4 +292,4 @@ def get_eval_image(references: List[str], hypotheses: str,
     :return: scores
     '''
     evaluator = ComputeMetrics(smooth=smooth, rouge=rouge)
-    return evaluator.compute_single_image(references, hypotheses)
+    return evaluator.compute_single_image(references, hypothesis)
