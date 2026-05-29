@@ -8,7 +8,7 @@ import json
 warnings.filterwarnings("ignore")
 from src.data.dataset import get_eval_loader, get_transforms
 from inference import generate_caption
-from src.evaluation.compute_metric import get_eval_score
+from src.evaluation.compute_metric import get_eval_score, get_eval_image
 from src.models.decoder_lstm import LSTMDecoder
 from src.models.encoder import ResNet50Encoder, ResNet50SpatialEncoder
 from src.models.m2_transformer import M2TransformerDecoder
@@ -51,6 +51,10 @@ def evaluate_model(args, encoder, decoder, vocab, device, logger=None, log_dir=N
                 ])
                 refs.append(ref)
             references.append(refs)
+
+            # tính toán cho từng ảnh 
+            per_image_metrics = get_eval_image(refs, prediction)
+
             # lấy thông tin của ảnh để vẽ ảnh 
             image_id = loader.dataset.ids[idx]
             img_info = loader.dataset.coco.loadImgs(image_id)[0]
@@ -59,12 +63,19 @@ def evaluate_model(args, encoder, decoder, vocab, device, logger=None, log_dir=N
 
             # thêm log cho predictions
             prediction_logs.append({
-                "index": idx,                   # index: bắt đầu từ 0
-                "image_id": image_id,           # id của ảnh
-                "file_name": file_name,         # tên ảnh
-                "image_path": image_path,       # đường dẫn của ảnh 
-                "prediction": prediction,       # prediction: câu dự đoán từ mô hình
-                "references": refs              # references: câu tham chiếu của dữ liệu 
+                "index": idx,                                   # index: bắt đầu từ 0
+                "image_id": image_id,                           # id của ảnh
+                "file_name": file_name,                         # tên ảnh
+                "image_path": image_path,                       # đường dẫn của ảnh 
+                "prediction": prediction,                       # prediction: câu dự đoán từ mô hình
+                "references": refs,                             # references: câu tham chiếu của dữ liệu 
+                "BLEU-1": per_image_metrics['BLEU']["BLEU-1"],  # chỉ số bleu1
+                "BLEU-2": per_image_metrics['BLEU']["BLEU-2"],  # bleu2
+                "BLEU-3": per_image_metrics['BLEU']["BLEU-3"],  # bleu3
+                "BLEU-4": per_image_metrics['BLEU']["BLEU-4"],  # bleu4
+                "METEOR": per_image_metrics["METEOR"],          # meteor
+                "ROUGE_L": per_image_metrics["ROUGE_L"],        # rouge-l
+                "avg_score": per_image_metrics["AVERAGE"]       # average score
             })
             # số câu đã dự đoán 
             if logger and len(hypotheses) % 1000 == 0:
