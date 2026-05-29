@@ -1,7 +1,7 @@
-from typing import List, Dict
+from typing import List, Dict, Tuple
 from rouge_score import rouge_scorer # ROUGE
 from pycocoevalcap.cider.cider import Cider # CIDER
-from nltk.translate.bleu_score import corpus_bleu, SmoothingFunction # BLEU
+from nltk.translate.bleu_score import corpus_bleu, sentence_bleu, SmoothingFunction # BLEU
 from nltk.translate.meteor_score import meteor_score # METEOR
 import re
 import numpy as np
@@ -56,7 +56,7 @@ class ComputeMetrics:
     
     # BLEU
     def _corpus_bleu_score(self, references: List[List[str]], 
-                          hypotheses: List[str], weights: tuple)-> float:
+                          hypotheses: List[str], weights: Tuple)-> float:
         '''
         Tính BLEU ở mức corpus
         :param references: List các list chuỗi tham chiếu
@@ -231,6 +231,46 @@ class ComputeMetrics:
         results['METEOR'] = meteor
         return results
     
+    def compute_single_image(self, references: List[str], hypothesis: str) -> Dict:
+        '''
+        Tính metric: BLEU-1, BLEU-2, BLEU-3, BLEU-4, METEOR, ROUGE-L cho mỗi ảnh
+        :param references: chuỗi tham chiếu (có thể có nhiều tham chiếu cho mỗi bức ảnh)
+        :param hypotheses: chuỗi dự đoán tốt nhất cho từng bức ảnh
+        :return: scores
+        '''
+        hyp = self._preprocess(hypothesis)
+        refs = [self._preprocess(ref) for ref in references]
+
+        # BLEU
+        bleu1 = sentence_bleu(references=refs, hypothesis=hyp, weights=(1, 0, 0, 0))
+        bleu2 = sentence_bleu(references=refs, hypothesis=hyp, weights=(0.5, 0.5, 0, 0))
+        bleu3 = sentence_bleu(references=refs, hypothesis=hyp, weights=(1/3, 1/3, 1/3, 0))
+        bleu4 = sentence_bleu(references=refs, hypothesis=hyp, weights=(0.25, 0.25, 0.25, 0.25))
+    
+        # METEOR
+        meteor = meteor_score(references=refs, hypothesis=hyp)    
+        # ROUGE-L
+        best_rouge = 0.0
+        for ref in refs:
+            scores = self.rouge_scorer.score(hyp, ref)
+            f1 = scores[self.rouge].fmeasure
+            best_rouge = max(best_rouge, f1)
+            
+        avg_score = round(float((bleu4 + meteor + best_rouge) / 3),5)
+        results = dict()
+        results['BLEU'] = {
+            'BLEU-1': round(bleu1,5),
+            'BLEU-2': round(bleu2,5),
+            'BLEU-3': round(bleu3,5),
+            'BLEU-4': round(bleu4,5)
+        }
+        # ROUGE-L
+        results['ROUGE_L'] = best_rouge
+        # METEOR
+        results['METEOR'] = meteor
+        results['AVERAGE'] = avg_score
+        return results
+        
 def get_eval_score(references: List[List[str]], hypotheses: List[str], 
                    smooth:bool=True, rouge:str='rougeL') -> Dict: 
     '''
@@ -241,3 +281,14 @@ def get_eval_score(references: List[List[str]], hypotheses: List[str],
     '''
     evaluator = ComputeMetrics(smooth=smooth, rouge=rouge)
     return evaluator.compute_all(references, hypotheses)
+
+def get_eval_image(references: List[str], hypotheses: str, 
+                   smooth:bool=True, rouge:str='rougeL') -> Dict: 
+    '''
+    Calculate BLEU1~4, METEOR, ROUGE_L scores for each image
+    :param references: chuỗi tham chiếu (có thể có nhiều tham chiếu cho mỗi bức ảnh)
+    :param hypotheses: chuỗi dự đoán tốt nhất cho từng bức ảnh
+    :return: scores
+    '''
+    evaluator = ComputeMetrics(smooth=smooth, rouge=rouge)
+    return evaluator.compute_single_image(references, hypotheses)
