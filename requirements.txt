@@ -14,3 +14,8 @@ pycocotools>=2.0.7
 
 # --- Configuration & Utilities ---
 PyYAML>=6.0
+
+# --- Evaluation Metrics ---
+rouge_score
+tqdm
+pycocoevalcap

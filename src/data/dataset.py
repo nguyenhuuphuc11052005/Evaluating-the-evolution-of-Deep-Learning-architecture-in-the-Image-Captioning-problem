@@ -70,7 +70,7 @@ class CapsCollate:
 
         return imgs, targets
 
-def get_loader(root_dir, ann_file, vocab, transform, batch_size=32, num_workers=0, limit=50000):
+def get_loader(root_dir, ann_file, vocab, transform, batch_size=32, num_workers=0, limit=50000, shuffle=True):
     dataset = CocoDataset(root_dir, ann_file, vocab, transform, limit)
     
     # --- SỬA Ở ĐÂY: Xử lý pad_idx ---
@@ -85,7 +85,68 @@ def get_loader(root_dir, ann_file, vocab, transform, batch_size=32, num_workers=
         dataset=dataset,
         batch_size=batch_size,
         num_workers=num_workers,
-        shuffle=True, # Trộn ảnh lên cho mỗi epoch
+        shuffle=shuffle, # Trộn ảnh lên cho mỗi epoch
         collate_fn=CapsCollate(pad_idx=pad_idx)
     )
+    return loader
+
+class CocoEvalDataset(Dataset):
+    '''
+    Dataset dành cho evaluate
+    '''
+    def __init__(self, root_dir, ann_file, vocab, transform=None):
+       self.root_dir = root_dir
+       self.coco = COCO(ann_file)
+       self.vocab = vocab
+       self.transform = transform
+
+       # lấy ids của ảnh 
+       self.ids = list(self.coco.imgs.keys())
+
+    def __len__(self):
+        return len(self.ids)
+    
+    def __getitem__(self, index):
+        img_id = self.ids[index]
+
+        # load ảnh
+        path = self.coco.loadImgs(img_id)[0]['file_name']
+        img = Image.open(os.path.join(self.root_dir, path)).convert("RGB")
+
+        if self.transform:
+            img = self.transform(img)
+
+        # lấy toàn bộ caption của ảnh
+        ann_ids = self.coco.getAnnIds(imgIds=img_id)
+        anns = self.coco.loadAnns(ann_ids)
+        all_captions = []
+
+        for ann in anns:
+            caption = str(ann["caption"])
+            tokens = nltk.tokenize.word_tokenize(caption.lower())
+
+            numericalized = [self.vocab.word2idx[self.vocab.start_word]]
+
+            numericalized.extend([self.vocab(token) for token in tokens])
+
+            numericalized.append(self.vocab.word2idx[self.vocab.end_word])
+
+            all_captions.append(torch.tensor(numericalized, dtype=torch.long))
+
+        return img, all_captions
+    
+class EvalCollate:
+    def __call__(self, batch):
+        # Batch là danh sách các tuple (image, caption)
+        imgs = torch.stack([item[0] for item in batch])
+        all_caps = [item[1] for item in batch]
+
+        return imgs, all_caps
+    
+def get_eval_loader(root_dir, ann_file, vocab, transform, batch_size:int=1, num_workers:int=0):
+
+    dataset = CocoEvalDataset( root_dir, ann_file, vocab, transform)
+
+    loader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=False,
+                        num_workers=num_workers, collate_fn=EvalCollate())
     return loader
