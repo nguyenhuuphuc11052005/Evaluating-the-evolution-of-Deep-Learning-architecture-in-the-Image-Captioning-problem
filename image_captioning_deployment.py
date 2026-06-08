@@ -96,11 +96,11 @@ def caption_images_from_folder(args, config, vocab, transform, device, show_imag
                 save_dir,
                 f"{os.path.splitext(file_name)[0]}_caption.png"
             )
-            
+
             title = ''
-            title += f"Figure's name: {file_name}"
-            title += f"Greedy: {greedy_cap}"
-            title += f"Beam: {beam_cap}"
+            title += f"File name: {file_name}\n"
+            title += f"Greedy Search: {greedy_cap}\n"
+            title += f"Beam Search: {beam_cap}"
             wrapped_title = wrap_multiline_text(text=title, width=90)
 
             plt.figure(figsize=(8,6))
