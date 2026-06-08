@@ -1,0 +1,21 @@
+# --- Core Deep Learning ---
+torch>=2.0.0
+torchvision>=0.15.0
+
+# --- Image Processing & Visualization ---
+Pillow>=9.5.0
+matplotlib>=3.7.1
+opencv-python>=4.8.0
+numpy>=1.24.0
+
+# --- Natural Language Processing & Metrics ---
+nltk>=3.8.1
+pycocotools>=2.0.7
+
+# --- Configuration & Utilities ---
+PyYAML>=6.0
+
+# --- Evaluation Metrics ---
+rouge_score
+tqdm
+pycocoevalcap
