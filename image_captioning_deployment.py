@@ -94,7 +94,7 @@ def caption_images_from_folder(args, config, vocab, transform, device, show_imag
 
             save_path = os.path.join(
                 save_dir,
-                f"{os.path.splitext(file_name)[0]}_caption.png"
+                f"{os.path.splitext(file_name)[0]}_caption_{args.model_type}.png"
             )
 
             title = ''
