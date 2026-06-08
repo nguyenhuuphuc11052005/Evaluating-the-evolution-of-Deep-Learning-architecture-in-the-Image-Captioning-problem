@@ -88,39 +88,39 @@ def caption_images_from_folder(args, config, vocab, transform, device, show_imag
         print(f"Beam Search: {beam_cap}")
         print("-" * 80)
 
-    if show_image:
-        save_dir = "experiments/deployment_outputs"
-        os.makedirs(save_dir, exist_ok=True)
+        if show_image:
+            save_dir = "experiments/deployment_outputs"
+            os.makedirs(save_dir, exist_ok=True)
 
-        save_path = os.path.join(
-            save_dir,
-            f"{os.path.splitext(file_name)[0]}_caption.png"
-        )
+            save_path = os.path.join(
+                save_dir,
+                f"{os.path.splitext(file_name)[0]}_caption.png"
+            )
 
-        fig, ax = plt.subplots(figsize=(8, 9))
-        ax.imshow(image)
-        ax.axis("off")
+            fig, ax = plt.subplots(figsize=(8, 9))
+            ax.imshow(image)
+            ax.axis("off")
 
-        caption_text = (
-            f"File: {file_name}\n"
-            f"Greedy: {greedy_cap}\n"
-            f"Beam Search: {beam_cap}"
-        )
-        caption_text = wrap_multiline_text(caption_text, width=90)
+            caption_text = (
+                f"File: {file_name}\n"
+                f"Greedy: {greedy_cap}\n"
+                f"Beam Search: {beam_cap}"
+            )
+            caption_text = wrap_multiline_text(caption_text, width=90)
 
-        fig.text(
-            0.05, 0.02,
-            caption_text,
-            fontsize=10,
-            ha="left",
-            va="bottom"
-        )
+            fig.text(
+                0.05, 0.02,
+                caption_text,
+                fontsize=10,
+                ha="left",
+                va="bottom"
+            )
 
-        plt.subplots_adjust(bottom=0.25)
-        plt.savefig(save_path, dpi=200)
-        plt.close(fig)
+            plt.subplots_adjust(bottom=0.25)
+            plt.savefig(save_path, dpi=200)
+            plt.close(fig)
 
-        print(f"Đã lưu ảnh kết quả tại: {save_path}")
+            print(f"Đã lưu ảnh kết quả tại: {save_path}")
     return results
 
 
@@ -131,7 +131,7 @@ if __name__ == "__main__":
     parser.add_argument("--checkpoint", required=True)
     parser.add_argument("--model_type", required=True, choices=["lstm", "m2_transformer", "vit_transformer"])
     parser.add_argument("--folder_path", required=True)
-    parser.add_argument("--vocab_path", required=True, default="vocab.pkl")
+    parser.add_argument("--vocab_path", default="vocab.pkl")
     parser.add_argument("--beam_size", type=int, default=5)
 
     args = parser.parse_args()
