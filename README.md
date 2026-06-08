@@ -113,17 +113,61 @@ python main.py --config configs/vit_transformer.yaml
 *(Checkpoints mô hình sẽ được lưu tự động sau mỗi Epoch vào thư mục `experiments/checkpoints/`)*.
 
 ### 2. Dự đoán/Sinh mô tả cho ảnh mới (Inference)
-
-Sau khi đã train xong (hoặc có sẵn file trọng số `.pth`), bạn có thể dùng file `inference.py` để test mô hình với những bức ảnh tải trên mạng.
-
-1. Mở file `inference.py`.
-2. Thay đổi đường dẫn ảnh (`IMAGE_PATH`), loại mô hình (`MODEL_TYPE`), và đường dẫn trọng số (`WEIGHTS_PATH`) ở cuối file.
-3. Chạy script:
-
-```bash
-python inference.py
-
+Tải thư viện cần thiết
+```
+bash
+!pip install -r requirement.txt
 ```
 
-Màn hình sẽ hiển thị bức ảnh cùng với 2 câu mô tả được sinh ra từ **Greedy Search** và **Beam Search** để bạn đối chiếu và đánh giá trực quan.
+Sau khi đã train xong (hoặc có sẵn file trọng số `.pth`), bạn có thể dùng file `image_captioning_deployment.py` để test mô hình với những bức ảnh tải trên mạng.
 
+1. Lưu những bức ảnh của bạn trong folder (`folder_path`)
+2. Mở file `image_captioning_deploymet.py`.
+3. Thay đổi đường dẫn lưu ảnh (`save_dir`) để chọn nơi lưu ảnh đã sinh caption.
+4. Chạy script:
+
+```
+bash
+!python image_captioning_deployment.py \
+  --config config_path\
+  --checkpoint checkpoints_path \
+  --model_type model_type \
+  --folder_path folder_path \
+  --vocab_path vocab_path \
+  --beam_size 5
+```
+Ví dụ:
+```
+bash
+!python image_captioning_deployment.py \
+  --config configs/baseline_lstm.yaml \
+  --checkpoint experiments/checkpoints/baseline_lstm_run1/best_model.pth \
+  --model_type lstm \
+  --folder_path /content/drive/MyDrive/Evaluating-the-evolution-of-Deep-Learning-architecture-in-the-Image-Captioning-problem/experiments/image_for_testing/ \
+  --vocab_path vocab.pkl \
+  --beam_size 5
+```
+Sau khi hoàn tất, bức ảnh cùng với 2 câu mô tả sẽ xuất hiện trong folder bạn chọn (`save_dir`). Nếu bạn muốn màn hình hiển thị bức ảnh cùng với 2 câu mô tả được sinh ra từ **Greedy Search** và **Beam Search** để bạn đối chiếu và đánh giá trực quan, bạn chạy đoạn lệnh sau:
+```
+bash
+from IPython.display import Image, display
+import os
+
+output_dir = "experiments/deployment_outputs"
+
+for file_name in sorted(os.listdir(output_dir)):
+    if file_name.lower().endswith((".png", ".jpg", ".jpeg")):
+        print(file_name)
+        display(Image(filename=os.path.join(output_dir, file_name)))
+```
+Demo:
+file_path: 'file_name'_caption_vit_transformer.png
+
+Mô hình LSTM
+![Demo result](images/2_caption_lstm.png)
+
+Mô hình ViT
+![Demo result](images/10_caption_vit_transformer.png)
+
+Mô hình M2
+![Demo result](images/3_caption_m2_transformer.png)
