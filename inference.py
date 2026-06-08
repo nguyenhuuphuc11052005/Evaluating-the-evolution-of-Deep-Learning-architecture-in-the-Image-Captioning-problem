@@ -6,10 +6,6 @@ import textwrap
 from PIL import Image
 import matplotlib.pyplot as plt
 from typing import List, Dict, Any, Optional, Tuple
-from src.evaluation.eval import build_model
-import argparse
-import pickle
-from utils import load_config
 
 def generate_caption(image_tensor, encoder, decoder, vocab, device, model_type='lstm', mode='greedy', beam_width=5):
     """
@@ -352,43 +348,3 @@ def plot_selected_score_images(json_path: str, top_k: int = 10, score_key: str =
 
         # Vẽ ảnh
         plot_caption_from_log(log_item=item, image_root=image_root, save_path=save_path, figsize=figsize, wrap_width=wrap_width)
-
-def show_caption(args, config, vocab, device):
-    '''
-    Sinh caption cho những ảnh mới 
-    '''
-    print(f"Đang sinh câu (Architecture: {args.model_type})...")
-    vocab_size = len(vocab)
-    encoder, decoder = build_model(args, config, vocab_size, args.device)
-    # Sinh câu bằng 2 phương pháp
-    greedy_cap, img = generate_caption(args.image_path, encoder, decoder, vocab, device, 
-                                        model_type=args.model_type, mode='greedy')
-    beam_cap, _ = generate_caption(args.image_path, encoder, decoder, vocab, device,
-                                    model_type=args.model_type, mode='beam_search', beam_width=5)
-    
-    # Hiển thị kết quả
-    plt.figure(figsize=(8, 8))
-    plt.imshow(img)
-    plt.axis('off')
-    
-    # Format tiêu đề cho dễ nhìn
-    title_text = f"[{args.model_type.upper()}]\nGreedy: {greedy_cap}\nBeam Search: {beam_cap}"
-    plt.title(title_text, fontsize=12, loc='left', pad=10)
-    plt.tight_layout()
-    plt.show()
-    
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Generating captions for new pics:')
-    parser.add_argument("--config",required=True)
-    parser.add_argument("--checkpoint", required=True)
-    parser.add_argument("--model_type", required=True, choices=['lstm', 'm2_transformer', 'vit_transformer'])
-    parser.add_argument("--images_path", required=True)
-    args = parser.parse_args()
-
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    vocab_path = 'vocab.pkl'
-    with open(vocab_path, 'rb') as f:
-        vocab = pickle.load(f)
-    print(f"-> Đã load Vocab với {len(vocab)} từ.")
-    config = load_config(args.config)
-    show_caption(args, config=config, vocab=vocab, device=device)
