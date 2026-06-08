@@ -16,8 +16,7 @@ Dự án này nhằm mục đích xây dựng, huấn luyện và đánh giá s�
 ```text
 Evaluating-the-evolution-of-Deep-Learning-architecture/
 ├── main.py                            # Script chính để huấn luyện mô hình (Train)
-├── inference.py                       # Script để sinh caption cho ảnh mới với chỉ số đánh giá (hỗ trợ chọn ảnh có chỉ số đánh giá cao/ thấp nhất)
-├── image_captioning_deployment.py     # Script để sinh caption bằng 2 phương pháp cho ảnh tự nhập
+├── inference.py                       # Script để sinh caption bằng 2 phương pháp cho ảnh tự nhập 
 ├── requirements.txt                   # Danh sách thư viện cần thiết
 ├── notebook/                          # Các notebooks phân tích   
 ├── configs/                           # Chứa các file cấu hình YAML cho từng mô hình
