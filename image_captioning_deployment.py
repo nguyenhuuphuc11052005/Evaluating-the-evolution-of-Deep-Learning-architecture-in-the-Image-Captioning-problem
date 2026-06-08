@@ -96,33 +96,30 @@ def caption_images_from_folder(args, config, vocab, transform, device, show_imag
                 save_dir,
                 f"{os.path.splitext(file_name)[0]}_caption.png"
             )
+            
+            title = ''
+            title += f"Figure's name: {file_name}"
+            title += f"Greedy: {greedy_cap}"
+            title += f"Beam: {beam_cap}"
+            wrapped_title = wrap_multiline_text(text=title, width=90)
 
-            caption_text = (
-                f"File: {file_name}\n"
-                f"Greedy: {greedy_cap}\n"
-                f"Beam Search: {beam_cap}"
-            )
-            caption_text = wrap_multiline_text(caption_text, width=90)
+            plt.figure(figsize=(8,6))
+            plt.imshow(image)
+            plt.axis("off")
+            plt.title(wrapped_title, fontsize=9, loc="left", pad=12)
+            plt.tight_layout()
 
-            # Tạo figure gồm 2 hàng: hàng trên là ảnh, hàng dưới là caption
-            fig = plt.figure(figsize=(10, 6.5))
-            gs = fig.add_gridspec(2, 1, height_ratios=[5, 1], hspace=0.03)
+            # Lưu ảnh nếu có save_path
+            if save_path is not None:
+                save_folder = os.path.dirname(save_path)
 
-            # Vùng ảnh
-            ax_img = fig.add_subplot(gs[0])
-            ax_img.imshow(image)
-            ax_img.axis("off")
+                if save_folder != "":
+                    os.makedirs(save_folder, exist_ok=True)
 
-            # Vùng caption
-            ax_txt = fig.add_subplot(gs[1])
-            ax_txt.axis("off")
-            ax_txt.text(0.0, 1.0, caption_text, fontsize=10, ha="left", va="top")
+                plt.savefig(save_path, bbox_inches="tight", dpi=200)
 
-            plt.subplots_adjust(bottom=0.25)
-            plt.savefig(save_path, dpi=200)
-            plt.close(fig)
-
-            print(f"Đã lưu ảnh kết quả tại: {save_path}")
+            plt.show()
+            plt.close()
     return results
 
 
