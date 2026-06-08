@@ -97,10 +97,6 @@ def caption_images_from_folder(args, config, vocab, transform, device, show_imag
                 f"{os.path.splitext(file_name)[0]}_caption.png"
             )
 
-            fig, ax = plt.subplots(figsize=(8, 9))
-            ax.imshow(image)
-            ax.axis("off")
-
             caption_text = (
                 f"File: {file_name}\n"
                 f"Greedy: {greedy_cap}\n"
@@ -108,13 +104,19 @@ def caption_images_from_folder(args, config, vocab, transform, device, show_imag
             )
             caption_text = wrap_multiline_text(caption_text, width=90)
 
-            fig.text(
-                0.05, 0.02,
-                caption_text,
-                fontsize=10,
-                ha="left",
-                va="bottom"
-            )
+            # Tạo figure gồm 2 hàng: hàng trên là ảnh, hàng dưới là caption
+            fig = plt.figure(figsize=(10, 6.5))
+            gs = fig.add_gridspec(2, 1, height_ratios=[5, 1], hspace=0.03)
+
+            # Vùng ảnh
+            ax_img = fig.add_subplot(gs[0])
+            ax_img.imshow(image)
+            ax_img.axis("off")
+
+            # Vùng caption
+            ax_txt = fig.add_subplot(gs[1])
+            ax_txt.axis("off")
+            ax_txt.text(0.0, 1.0, caption_text, fontsize=10, ha="left", va="top")
 
             plt.subplots_adjust(bottom=0.25)
             plt.savefig(save_path, dpi=200)
