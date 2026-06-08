@@ -1,8 +1,7 @@
 # Evaluating-the-evolution-of-Deep-Learning-architecture-in-the-Image-Captioning-problem
 
 
-```
-markdown
+```markdown
 # 📷 Image Captioning: Evaluating the Evolution of Deep Learning Architectures
 
 Dự án này nhằm mục đích xây dựng, huấn luyện và đánh giá sự tiến hóa của các kiến trúc Deep Learning trong bài toán sinh mô tả ảnh tự động (Image Captioning). Hệ thống hỗ trợ 3 kiến trúc từ cơ bản đến SOTA:
@@ -14,8 +13,7 @@ Dự án này nhằm mục đích xây dựng, huấn luyện và đánh giá s�
 
 ## 📂 Cấu trúc thư mục (Project Structure)
 
-```
-text
+```text
 Evaluating-the-evolution-of-Deep-Learning-architecture/
 ├── main.py                            # Script chính để huấn luyện mô hình (Train)
 ├── inference.py                       # Script để sinh caption cho ảnh mới với chỉ số đánh giá (hỗ trợ chọn ảnh có chỉ số đánh giá cao/ thấp nhất)
@@ -53,8 +51,7 @@ source venv/bin/activate
 
 **Dành cho Windows:**
 
-```
-bash
+```bash
 python -m venv venv
 venv\Scripts\activate
 
@@ -76,8 +73,7 @@ pip install -r requirements.txt
 
 Mở terminal/python console và chạy đoạn code nhỏ sau để tải bộ tách từ của NLTK (Chỉ cần làm 1 lần):
 
-```
-bash
+```bash
 python -c "import nltk; nltk.download('punkt'); nltk.download('punkt_tab')"
 
 ```
@@ -92,8 +88,7 @@ Dự án sử dụng tập dữ liệu **MS COCO 2014**.
 2. Mở file cấu hình `configs/baseline_lstm.yaml` (và các file yaml khác).
 3. Sửa lại các đường dẫn trong mục `data:` trỏ đúng đến thư mục chứa ảnh và file JSON trên máy của bạn:
 
-```
-yaml
+```yaml
 data:
   root_dir: "đường_dẫn_tới_thư_mục_ảnh_train2014"
   train_ann_file: "đường_dẫn_tới_file_json_train"
@@ -123,8 +118,7 @@ python main.py --config configs/vit_transformer.yaml
 
 ### 2. Dự đoán/Sinh mô tả cho ảnh mới (Inference)
 Tải thư viện cần thiết
-```
-bash
+```bash
 !pip install -r requirement.txt
 ```
 
@@ -135,8 +129,7 @@ Sau khi đã train xong (hoặc có sẵn file trọng số `.pth`), bạn có t
 3. Thay đổi đường dẫn lưu ảnh (`save_dir`) để chọn nơi lưu ảnh đã sinh caption.
 4. Chạy script:
 
-```
-bash
+```bash
 !python image_captioning_deployment.py \
   --config config_path\
   --checkpoint checkpoints_path \
@@ -146,8 +139,7 @@ bash
   --beam_size 5
 ```
 Ví dụ:
-```
-bash
+```bash
 !python image_captioning_deployment.py \
   --config configs/baseline_lstm.yaml \
   --checkpoint experiments/checkpoints/baseline_lstm_run1/best_model.pth \
@@ -157,8 +149,7 @@ bash
   --beam_size 5
 ```
 Sau khi hoàn tất, bức ảnh cùng với 2 câu mô tả sẽ xuất hiện trong folder bạn chọn (`save_dir`). Nếu bạn muốn màn hình hiển thị bức ảnh cùng với 2 câu mô tả được sinh ra từ **Greedy Search** và **Beam Search** để bạn đối chiếu và đánh giá trực quan, bạn chạy đoạn lệnh sau:
-```
-bash
+```bash
 from IPython.display import Image, display
 import os
 
