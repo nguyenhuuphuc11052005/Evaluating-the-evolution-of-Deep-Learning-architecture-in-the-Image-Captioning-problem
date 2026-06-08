@@ -87,6 +87,19 @@ def caption_images_from_folder(args, config, vocab, transform, device, show_imag
             plt.tight_layout()
             plt.show()
 
+            save_dir = "experiments/deployment_outputs"
+            os.makedirs(save_dir, exist_ok=True)
+
+            save_path = os.path.join(
+                save_dir,
+                f"{os.path.splitext(file_name)[0]}_caption.png"
+            )
+
+            plt.savefig(save_path, bbox_inches="tight", dpi=200)
+            plt.close()
+
+            print(f"Đã lưu ảnh kết quả tại: {save_path}")
+
     return results
 
 
