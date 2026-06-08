@@ -11,12 +11,27 @@ from src.data.dataset import get_transforms
 from src.utils import load_config
 
 
-def wrap_text(text, width=90):
+def wrap_multiline_text(text: str, width:int=90) -> str:
     '''
-    Chỉnh text của plt
+    Tự động xuống dòng cho một chuỗi văn bản dài
+    :param text: chuỗi văn bản cần xuống dòng 
+    :param width: số ký tự tối đa trên 1 dòng 
+    :return: chuỗi văn bản đã được xuống dòng 
     '''
-    return "\n".join(textwrap.wrap(text, width=width))
+    # tách văn bản có sẵn
+    lines = text.split("\n")
+    # danh sách lưu các dòng sau khi wrap
+    wrapped_lines = []
 
+    for line in lines:
+        # nếu dòng rỗng thì giữ nguyên
+        if line.strip() == "":
+            wrapped_lines.append("")
+        else:
+            # nếu dòng có nội dung thì wrap theo độ rộng
+            wrapped_lines.extend(textwrap.wrap(line, width=width))
+    # ghép các dòng thành chuỗi hoàn chỉnh 
+    return "\n".join(wrapped_lines)
 
 def caption_images_from_folder(args, config, vocab, transform, device, show_image=True):
     """
@@ -73,33 +88,39 @@ def caption_images_from_folder(args, config, vocab, transform, device, show_imag
         print(f"Beam Search: {beam_cap}")
         print("-" * 80)
 
-        if show_image:
-            title = (
-                f"File: {file_name}\n"
-                f"Greedy: {greedy_cap}\n"
-                f"Beam Search: {beam_cap}"
-            )
+    if show_image:
+        save_dir = "experiments/deployment_outputs"
+        os.makedirs(save_dir, exist_ok=True)
 
-            plt.figure(figsize=(7, 7))
-            plt.imshow(image)
-            plt.axis("off")
-            plt.title(wrap_text(title, width=90), fontsize=10, loc="left", pad=10)
-            plt.tight_layout()
-            plt.show()
+        save_path = os.path.join(
+            save_dir,
+            f"{os.path.splitext(file_name)[0]}_caption.png"
+        )
 
-            save_dir = "experiments/deployment_outputs"
-            os.makedirs(save_dir, exist_ok=True)
+        fig, ax = plt.subplots(figsize=(8, 9))
+        ax.imshow(image)
+        ax.axis("off")
 
-            save_path = os.path.join(
-                save_dir,
-                f"{os.path.splitext(file_name)[0]}_caption.png"
-            )
+        caption_text = (
+            f"File: {file_name}\n"
+            f"Greedy: {greedy_cap}\n"
+            f"Beam Search: {beam_cap}"
+        )
+        caption_text = wrap_multiline_text(caption_text, width=90)
 
-            plt.savefig(save_path, bbox_inches="tight", dpi=200)
-            plt.close()
+        fig.text(
+            0.05, 0.02,
+            caption_text,
+            fontsize=10,
+            ha="left",
+            va="bottom"
+        )
 
-            print(f"Đã lưu ảnh kết quả tại: {save_path}")
+        plt.subplots_adjust(bottom=0.25)
+        plt.savefig(save_path, dpi=200)
+        plt.close(fig)
 
+        print(f"Đã lưu ảnh kết quả tại: {save_path}")
     return results
 
 
