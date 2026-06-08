@@ -163,11 +163,5 @@ for file_name in sorted(os.listdir(output_dir)):
 Demo:
 file_path: 'file_name'_caption_vit_transformer.png
 
-Mô hình LSTM
-![Demo result](images/2_caption_lstm.png)
-
 Mô hình ViT
 ![Demo result](images/10_caption_vit_transformer.png)
-
-Mô hình M2
-![Demo result](images/3_caption_m2_transformer.png)
